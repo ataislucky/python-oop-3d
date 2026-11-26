@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisasi 3D: Inheritance (Pewarisan) dalam Python OOP</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tone.js untuk efek suara sintetik interaktif tanpa file eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #070b14;
+            user-select: none;
+        }
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        #labels-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.65);
+        }
+        .glass-panel {
+            background: rgba(10, 15, 28, 0.84);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.85);
+        }
+        .code-line {
+            display: block;
+            padding: 1px 8px;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+            transition: all 0.22s ease;
+        }
+        .code-line.active-cyan {
+            background: rgba(6, 182, 212, 0.24);
+            border-left-color: #22d3ee;
+        }
+        .code-line.active-emerald {
+            background: rgba(16, 185, 129, 0.24);
+            border-left-color: #34d399;
+        }
+        .code-line.active-amber {
+            background: rgba(245, 158, 11, 0.24);
+            border-left-color: #fbbf24;
+        }
+        .code-line.active-purple {
+            background: rgba(168, 85, 247, 0.26);
+            border-left-color: #c084fc;
+        }
+        .floating-3d-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased">
+    
+    <!-- Container Utama WebGL 3D -->
+    <div id="canvas-container"></div>
+
+    <!-- Layer Label 3D Proyeksi Layar -->
+    <div id="labels-layer">
+        <!-- Label Parent: Kendaraan -->
+        <div id="label-parent" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-2 border border-cyan-400/50 shadow-lg text-center min-w-[205px]">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold">Superclass (Parent)</div>
+                <div class="text-sm font-mono font-bold text-white">class Kendaraan</div>
+                <div class="mt-1 pt-1 border-t border-slate-700/80 text-[10px] font-mono text-cyan-200 flex flex-col gap-0.5">
+                    <span>• self.merk, self.tahun</span>
+                    <span>• nyalakan_mesin(), info()</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Label Child Kiri: Mobil -->
+        <div id="label-mobil" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-2 border border-emerald-400/50 shadow-lg text-center min-w-[215px]">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Subclass (Child 1)</div>
+                <div class="text-sm font-mono font-bold text-white">class Mobil(Kendaraan)</div>
+                <div class="mt-1 pt-1 border-t border-slate-700/80 text-[10px] font-mono flex flex-col gap-0.5">
+                    <span class="text-cyan-300">↳ Warisan: merk, tahun, nyalakan_mesin()</span>
+                    <span class="text-emerald-300">+ Baru: self.jumlah_pintu</span>
+                    <span class="text-amber-300">↻ Override: info()</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Label Child Kanan: Motor -->
+        <div id="label-motor" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-2 border border-amber-400/50 shadow-lg text-center min-w-[215px]">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">Subclass (Child 2)</div>
+                <div class="text-sm font-mono font-bold text-white">class Motor(Kendaraan)</div>
+                <div class="mt-1 pt-1 border-t border-slate-700/80 text-[10px] font-mono flex flex-col gap-0.5">
+                    <span class="text-cyan-300">↳ Warisan: merk, tahun, nyalakan_mesin()</span>
+                    <span class="text-amber-300">+ Baru: self.jenis_stang</span>
+                    <span class="text-purple-300">↻ Override: info()</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Judul & Status Penjelasan (Kiri Atas) -->
+    <header class="fixed top-4 left-4 right-4 lg:right-auto z-20 pointer-events-none flex flex-col gap-2.5 max-w-xl">
+        <div class="glass-panel rounded-2xl p-4 pointer-events-auto">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span class="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">Python OOP • Konsep Inheritance</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button id="btn-toggle-labels" onclick="toggle3DLabels()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 transition text-xs font-mono border border-cyan-500/40">
+                        🏷️ Label: On
+                    </button>
+                    <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto;">
+                    <a href="index.html" style="background: rgba(15,23,42,0.85); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; transition: 0.2s;">
+                        ← Portal
+                    </a>
+                    <button id="btn-sound" title="Aktifkan/Matikan Efek Suara" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition text-xs font-mono flex items-center gap-1 border border-slate-700">
+                        <span id="sound-icon">🔇</span> <span class="hidden sm:inline" id="sound-label">Audio</span>
+                    </button>
+                    </div>
+                </div>
+            </div>
+            <h1 class="text-lg sm:text-xl font-bold text-white mt-1.5 tracking-tight">
+                Pohon Pewarisan & <span class="text-cyan-400">Aliran DNA Kode</span>
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                Subclass <code class="text-emerald-300 font-mono">Mobil</code> dan <code class="text-amber-300 font-mono">Motor</code> mewarisi atribut serta method dari Superclass <code class="text-cyan-300 font-mono">Kendaraan</code>, sekaligus dapat menambah fitur baru atau menimpa (<em>override</em>) perilaku induknya.
+            </p>
+        </div>
+
+        <!-- Banner Penjelasan Real-Time -->
+        <div id="status-banner" class="glass-panel rounded-xl px-4 py-3 border-l-4 border-l-cyan-400 pointer-events-auto transition-all duration-300">
+            <div class="flex items-start gap-2.5">
+                <span id="status-icon" class="text-base mt-0.5">🧬</span>
+                <div class="flex-1">
+                    <div id="status-title" class="text-xs font-mono font-bold uppercase tracking-wide text-cyan-300">
+                        Hierarki Kelas Siap Dieksplorasi
+                    </div>
+                    <p id="status-desc" class="text-xs sm:text-sm text-slate-200 mt-0.5 leading-snug">
+                        Klik tombol skenario 1 sampai 5 di panel bawah untuk melihat aliran pewarisan atribut, pemanggilan super(), MRO, dan overriding secara 3D.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Preset Kamera & Toggle Kode (Kanan Atas) -->
+    <div class="fixed top-4 right-4 z-20 flex items-center gap-1.5 flex-wrap justify-end">
+        <div class="glass-panel rounded-2xl p-1.5 hidden xl:flex items-center gap-1">
+            <button onclick="setCameraPreset('overview')" id="cam-overview" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition bg-cyan-500 text-slate-950 shadow">
+                🌐 Overview
+            </button>
+            <button onclick="setCameraPreset('parent')" id="cam-parent" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white">
+                🔷 Parent
+            </button>
+            <button onclick="setCameraPreset('mobil')" id="cam-mobil" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white">
+                🟢 Mobil
+            </button>
+            <button onclick="setCameraPreset('motor')" id="cam-motor" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white">
+                🟠 Motor
+            </button>
+        </div>
+        <button onclick="resetAllSimulation()" title="Reset Animasi & Kamera" class="glass-panel rounded-xl px-3 py-2 text-xs font-mono text-slate-300 hover:text-white hover:bg-slate-800/90 transition border border-slate-700">
+            🔄 Reset
+        </button>
+        <button id="btn-toggle-code" onclick="toggleCodePanel()" class="glass-panel rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 hover:bg-slate-800/90 transition border border-cyan-500/30">
+            { } <span class="hidden sm:inline" id="code-toggle-label">Sembunyikan Kode</span>
+        </button>
+    </div>
+
+    <!-- Panel Kode Python & Live Console Output (Kanan) -->
+    <aside id="code-panel" class="fixed top-20 right-4 bottom-36 w-[92vw] sm:w-[440px] lg:w-[475px] z-20 glass-panel rounded-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <!-- Header Editor + Tab Inspektor Kelas -->
+        <div class="px-3.5 py-2 bg-slate-900/95 border-b border-slate-800 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span class="text-xs font-mono text-slate-300 ml-1">pewarisan_kendaraan.py</span>
+                </div>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    MRO: Mobil → Kendaraan → object
+                </span>
+            </div>
+
+            <!-- Tabs Filter Kelas -->
+            <div class="grid grid-cols-4 gap-1 bg-slate-950/90 p-1 rounded-lg border border-slate-800 text-[11px] font-mono">
+                <button onclick="selectCodeTab('all')" id="tab-all" class="code-tab py-1 px-2 rounded bg-cyan-500/25 text-cyan-300 font-semibold transition">
+                    Semua Kelas
+                </button>
+                <button onclick="selectCodeTab('parent')" id="tab-parent" class="code-tab py-1 px-2 rounded text-slate-400 hover:text-cyan-300 transition">
+                    Kendaraan
+                </button>
+                <button onclick="selectCodeTab('mobil')" id="tab-mobil" class="code-tab py-1 px-2 rounded text-slate-400 hover:text-emerald-300 transition">
+                    Mobil
+                </button>
+                <button onclick="selectCodeTab('motor')" id="tab-motor" class="code-tab py-1 px-2 rounded text-slate-400 hover:text-amber-300 transition">
+                    Motor
+                </button>
+            </div>
+        </div>
+
+        <!-- Isi Kode Python Sinkronisasi Real-Time -->
+        <div id="code-scroll-container" class="p-3 overflow-y-auto flex-1 font-mono text-[11px] sm:text-xs leading-relaxed bg-[#070a12]/95">
+<pre class="text-slate-200"><div id="block-parent"><span id="line-1" class="code-line"><span class="text-purple-400">class</span> <span class="text-cyan-300 font-bold">Kendaraan</span>:  <span class="text-slate-500"># Superclass / Parent</span></span>
+<span id="line-2" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, merk, tahun):</span>
+<span id="line-3" class="code-line">        self.<span class="text-cyan-300">merk</span> = merk</span>
+<span id="line-4" class="code-line">        self.<span class="text-cyan-300">tahun</span> = tahun</span>
+<span id="line-5" class="code-line"></span>
+<span id="line-6" class="code-line">    <span class="text-purple-400">def</span> <span class="text-cyan-300 font-bold">nyalakan_mesin</span>(self):</span>
+<span id="line-7" class="code-line">        <span class="text-purple-400">return</span> <span class="text-emerald-300">f"Mesin {self.merk} menyala: Brumm!"</span></span>
+<span id="line-8" class="code-line"></span>
+<span id="line-9" class="code-line">    <span class="text-purple-400">def</span> <span class="text-cyan-300 font-bold">info</span>(self):</span>
+<span id="line-10" class="code-line">        <span class="text-purple-400">return</span> <span class="text-emerald-300">f"{self.merk} ({self.tahun})"</span></span>
+<span class="code-line"></span></div><div id="block-mobil"><span id="line-11" class="code-line"><span class="text-purple-400">class</span> <span class="text-emerald-300 font-bold">Mobil</span>(<span class="text-cyan-300">Kendaraan</span>):  <span class="text-slate-500"># Subclass 1</span></span>
+<span id="line-12" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, merk, tahun, jumlah_pintu):</span>
+<span id="line-13" class="code-line">        <span class="text-amber-300 font-bold">super()</span>.__init__(merk, tahun)  <span class="text-slate-400"># Panggil Parent</span></span>
+<span id="line-14" class="code-line">        self.<span class="text-emerald-300">jumlah_pintu</span> = jumlah_pintu</span>
+<span id="line-15" class="code-line"></span>
+<span id="line-16" class="code-line">    <span class="text-purple-400">def</span> <span class="text-emerald-300 font-bold">info</span>(self):  <span class="text-slate-400"># Method Overriding</span></span>
+<span id="line-17" class="code-line">        dasar = <span class="text-amber-300">super()</span>.info()</span>
+<span id="line-18" class="code-line">        <span class="text-purple-400">return</span> <span class="text-emerald-300">f"Mobil {dasar} • {self.jumlah_pintu} Pintu"</span></span>
+<span class="code-line"></span></div><div id="block-motor"><span id="line-19" class="code-line"><span class="text-purple-400">class</span> <span class="text-amber-300 font-bold">Motor</span>(<span class="text-cyan-300">Kendaraan</span>):  <span class="text-slate-500"># Subclass 2</span></span>
+<span id="line-20" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, merk, tahun, jenis_stang):</span>
+<span id="line-21" class="code-line">        <span class="text-amber-300 font-bold">super()</span>.__init__(merk, tahun)</span>
+<span id="line-22" class="code-line">        self.<span class="text-amber-300">jenis_stang</span> = jenis_stang</span>
+<span id="line-23" class="code-line"></span>
+<span id="line-24" class="code-line">    <span class="text-purple-400">def</span> <span class="text-amber-300 font-bold">info</span>(self):  <span class="text-slate-400"># Method Overriding</span></span>
+<span id="line-25" class="code-line">        <span class="text-purple-400">return</span> <span class="text-amber-200">f"Motor {self.merk} • Stang {self.jenis_stang}"</span></span>
+<span class="code-line"></span></div><div id="block-client"><span id="line-26" class="code-line"><span class="text-slate-500"># --- Eksekusi & Pengujian ---</span></span>
+<span id="line-27" class="code-line">avanza = Mobil(<span class="text-emerald-300">"Toyota"</span>, <span class="text-rose-300">2024</span>, <span class="text-rose-300">4</span>)</span>
+<span id="line-28" class="code-line">ninja = Motor(<span class="text-amber-300">"Kawasaki"</span>, <span class="text-rose-300">2025</span>, <span class="text-amber-300">"Jepit"</span>)</span>
+<span id="line-29" class="code-line"><span id="dynamic-exec-line" class="text-slate-400"># Pilih tombol skenario di bawah untuk menjalankan...</span></span></div></pre>
+        </div>
+
+        <!-- Console Output Terminal Interaktif -->
+        <div class="h-36 bg-slate-950 border-t border-slate-800 flex flex-col">
+            <div class="px-3 py-1.5 bg-slate-900/95 border-b border-slate-800/80 flex items-center justify-between">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span> Console Output & MRO Trace
+                </span>
+                <button onclick="clearTerminal()" class="text-[10px] font-mono text-slate-400 hover:text-slate-200">
+                    Bersihkan
+                </button>
+            </div>
+            <div id="terminal-output" class="p-3 font-mono text-[11px] overflow-y-auto flex-1 space-y-1.5 text-slate-300">
+                <div class="text-slate-500">&gt;&gt;&gt; Mobil.__mro__</div>
+                <div class="text-cyan-300">(&lt;class 'Mobil'&gt;, &lt;class 'Kendaraan'&gt;, &lt;class 'object'&gt;)</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Dock Kontrol 5 Skenario Demo Perkuliahan (Bawah) -->
+    <footer class="fixed bottom-4 left-4 right-4 z-20 flex flex-col items-center pointer-events-none">
+        <div class="glass-panel rounded-2xl p-3 pointer-events-auto w-full max-w-6xl">
+            <div class="flex items-center justify-between px-1 mb-2">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    Skenario Pembelajaran Inheritance (Klik untuk Visualisasi Aliran 3D)
+                </span>
+                <span id="state-badge" class="text-[11px] font-mono font-semibold text-cyan-300 bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+                    Status: Struktur Kelas Siap
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                <!-- Skenario 1: Pewarisan Dasar -->
+                <button onclick="runScenarioInheritFlow()" class="text-left p-2.5 rounded-xl bg-cyan-950/45 hover:bg-cyan-900/65 border border-cyan-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-cyan-300">🧬 1. Wariskan Atribut</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-cyan-200/90 mt-1 block truncate">
+                        Aliran DNA Kendaraan → Child
+                    </code>
+                </button>
+
+                <!-- Skenario 2: Simulasi super().__init__() -->
+                <button onclick="runScenarioSuperInit()" class="text-left p-2.5 rounded-xl bg-amber-950/45 hover:bg-amber-900/65 border border-amber-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-amber-300">⬆️ 2. super().__init__()</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-amber-200/90 mt-1 block truncate">
+                        Inisialisasi Parent Dulu
+                    </code>
+                </button>
+
+                <!-- Skenario 3: Panggil Method Warisan (MRO) -->
+                <button onclick="runScenarioInheritedMethod()" class="text-left p-2.5 rounded-xl bg-blue-950/45 hover:bg-blue-900/65 border border-blue-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-blue-300">🔍 3. Method Warisan</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-blue-200/90 mt-1 block truncate">
+                        avanza.nyalakan_mesin()
+                    </code>
+                </button>
+
+                <!-- Skenario 4: Method Overriding -->
+                <button onclick="runScenarioOverriding()" class="text-left p-2.5 rounded-xl bg-emerald-950/45 hover:bg-emerald-900/65 border border-emerald-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-emerald-300">⚡ 4. Method Overriding</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-emerald-200/90 mt-1 block truncate">
+                        avanza.info() vs ninja.info()
+                    </code>
+                </button>
+
+                <!-- Skenario 5: Cek isinstance() & issubclass() -->
+                <button onclick="runScenarioInstanceCheck()" class="text-left p-2.5 rounded-xl bg-purple-950/45 hover:bg-purple-900/65 border border-purple-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-purple-300">🛡️ 5. Cek isinstance()</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-purple-200/90 mt-1 block truncate">
+                        isinstance(avanza, Kendaraan)
+                    </code>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. STATE APLIKASI & AUDIO SINTETIK
+        // ==========================================
+        let isAnimating = false;
+        let show3DLabels = true;
+        let codePanelVisible = true;
+        let soundEnabled = false;
+        let synth = null;
+
+        document.getElementById('btn-sound').addEventListener('click', async () => {
+            if (!soundEnabled) {
+                await Tone.start();
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -10;
+                soundEnabled = true;
+                document.getElementById('sound-icon').textContent = '🔊';
+                document.getElementById('sound-label').textContent = 'Audio On';
+                playNotes('C5', '16n');
+            } else {
+                soundEnabled = false;
+                document.getElementById('sound-icon').textContent = '🔇';
+                document.getElementById('sound-label').textContent = 'Audio';
+            }
+        });
+
+        function playNotes(notes, duration = '16n') {
+            if (soundEnabled && synth) {
+                try {
+                    synth.triggerAttackRelease(notes, duration);
+                } catch (e) {}
+            }
+        }
+
+        // ==========================================
+        // 2. INISIALISASI SCENE 3D THREE.JS
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x070b14, 0.024);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(-1.2, 1.5, 13.5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.25;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.minDistance = 5;
+        controls.maxDistance = 22;
+        controls.target.set(-0.8, 0.2, 0);
+
+        // Pencahayaan Atmosferik
+        const ambientLight = new THREE.AmbientLight(0x1e293b, 2.2);
+        scene.add(ambientLight);
+
+        const parentLight = new THREE.PointLight(0x06b6d4, 3.2, 12);
+        parentLight.position.set(-1.2, 3.2, 0);
+        scene.add(parentLight);
+
+        const mobilLight = new THREE.PointLight(0x10b981, 2.8, 10);
+        mobilLight.position.set(-4.6, -2.0, 0);
+        scene.add(mobilLight);
+
+        const motorLight = new THREE.PointLight(0xf59e0b, 2.8, 10);
+        motorLight.position.set(2.2, -2.0, 0);
+        scene.add(motorLight);
+
+        const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.3);
+        rimLight.position.set(5, 8, 6);
+        scene.add(rimLight);
+
+        // Lantai Grid Futuristik
+        const gridHelper = new THREE.GridHelper(36, 36, 0x0e7490, 0x0f172a);
+        gridHelper.position.y = -4.2;
+        scene.add(gridHelper);
+
+        // Partikel Bintang Latar
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(360 * 3);
+        for (let i = 0; i < starPos.length; i++) {
+            starPos[i] = (Math.random() - 0.5) * 52;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.08, transparent: true, opacity: 0.45 });
+        const starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+
+        // ==========================================
+        // 3. KOORDINAT NODE POHON PEWARISAN
+        // ==========================================
+        // Digeser sedikit ke kiri agar tidak tertutup panel kode di sisi kanan layar
+        const POS_PARENT = new THREE.Vector3(-1.2, 2.9, 0);
+        const POS_MOBIL = new THREE.Vector3(-4.5, -1.9, 0);
+        const POS_MOTOR = new THREE.Vector3(2.1, -1.9, 0);
+
+        // ==========================================
+        // 4. PEMBUATAN NODE 3D: PARENT & SUBCLASSES
+        // ==========================================
+        // --- A. Superclass: Kendaraan (Top Center) ---
+        const parentGroup = new THREE.Group();
+        parentGroup.position.copy(POS_PARENT);
+        scene.add(parentGroup);
+
+        const parentCoreMat = new THREE.MeshStandardMaterial({
+            color: 0x06b6d4,
+            emissive: 0x0891b2,
+            emissiveIntensity: 0.85,
+            metalness: 0.5,
+            roughness: 0.15
+        });
+        const parentCore = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 1), parentCoreMat);
+        parentGroup.add(parentCore);
+
+        const parentRing1 = new THREE.Mesh(
+            new THREE.TorusGeometry(1.5, 0.06, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+        );
+        parentRing1.rotation.x = Math.PI / 2.4;
+        parentGroup.add(parentRing1);
+
+        const parentRing2 = new THREE.Mesh(
+            new THREE.TorusGeometry(1.75, 0.04, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.65 })
+        );
+        parentRing2.rotation.y = Math.PI / 3;
+        parentGroup.add(parentRing2);
+
+        // Modul Atribut & Method di Parent (merk, tahun, nyalakan_mesin, info)
+        const parentAttrOrbs = [];
+        for (let i = 0; i < 4; i++) {
+            const orb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0x67e8f9, emissive: 0x06b6d4, emissiveIntensity: 0.9 })
+            );
+            const a = (i / 4) * Math.PI * 2;
+            orb.position.set(Math.cos(a) * 1.45, 0, Math.sin(a) * 1.45);
+            parentGroup.add(orb);
+            parentAttrOrbs.push(orb);
+        }
+
+        // --- B. Subclass 1: Mobil(Kendaraan) (Bottom Left - Emerald) ---
+        const mobilGroup = new THREE.Group();
+        mobilGroup.position.copy(POS_MOBIL);
+        scene.add(mobilGroup);
+
+        // Inti Warisan (Cyan di bagian atas modul Mobil - menyala saat diwarisi)
+        const mobilInheritedMat = new THREE.MeshStandardMaterial({
+            color: 0x0e7490,
+            emissive: 0x06b6d4,
+            emissiveIntensity: 0.25,
+            metalness: 0.6,
+            roughness: 0.25
+        });
+        const mobilInheritedCore = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.85, 0.75, 6), mobilInheritedMat);
+        mobilInheritedCore.position.y = 0.42;
+        mobilGroup.add(mobilInheritedCore);
+
+        // Modul Ekstensi & Overriding Khusus Mobil (Emerald di bagian bawah)
+        const mobilCustomMat = new THREE.MeshStandardMaterial({
+            color: 0x10b981,
+            emissive: 0x059669,
+            emissiveIntensity: 0.75,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+        const mobilCustomBase = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.8, 0.85, 6), mobilCustomMat);
+        mobilCustomBase.position.y = -0.42;
+        mobilGroup.add(mobilCustomBase);
+
+        const mobilRing = new THREE.Mesh(
+            new THREE.TorusGeometry(1.32, 0.055, 16, 48),
+            new THREE.MeshBasicMaterial({ color: 0x34d399 })
+        );
+        mobilRing.rotation.x = Math.PI / 2;
+        mobilGroup.add(mobilRing);
+
+        // --- C. Subclass 2: Motor(Kendaraan) (Bottom Right - Amber) ---
+        const motorGroup = new THREE.Group();
+        motorGroup.position.copy(POS_MOTOR);
+        scene.add(motorGroup);
+
+        // Inti Warisan (Cyan di bagian atas modul Motor)
+        const motorInheritedMat = new THREE.MeshStandardMaterial({
+            color: 0x0e7490,
+            emissive: 0x06b6d4,
+            emissiveIntensity: 0.25,
+            metalness: 0.6,
+            roughness: 0.25
+        });
+        const motorInheritedCore = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.85, 0.75, 6), motorInheritedMat);
+        motorInheritedCore.position.y = 0.42;
+        motorGroup.add(motorInheritedCore);
+
+        // Modul Ekstensi & Overriding Khusus Motor (Amber di bagian bawah)
+        const motorCustomMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.75,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+        const motorCustomBase = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.8, 0.85, 6), motorCustomMat);
+        motorCustomBase.position.y = -0.42;
+        motorGroup.add(motorCustomBase);
+
+        const motorRing = new THREE.Mesh(
+            new THREE.TorusGeometry(1.32, 0.055, 16, 48),
+            new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+        );
+        motorRing.rotation.x = Math.PI / 2;
+        motorGroup.add(motorRing);
+
+        // ==========================================
+        // 5. KONDUIT ENERGI / SERAT DNA PEWARISAN
+        // ==========================================
+        const curveLeft = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(POS_PARENT.x - 0.5, POS_PARENT.y - 0.9, 0),
+            new THREE.Vector3(-3.2, 0.8, 0.4),
+            new THREE.Vector3(POS_MOBIL.x, POS_MOBIL.y + 0.95, 0)
+        ]);
+
+        const curveRight = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(POS_PARENT.x + 0.5, POS_PARENT.y - 0.9, 0),
+            new THREE.Vector3(0.8, 0.8, 0.4),
+            new THREE.Vector3(POS_MOTOR.x, POS_MOTOR.y + 0.95, 0)
+        ]);
+
+        const tubeLeftMat = new THREE.MeshBasicMaterial({
+            color: 0x06b6d4,
+            transparent: true,
+            opacity: 0.38
+        });
+        const tubeLeft = new THREE.Mesh(new THREE.TubeGeometry(curveLeft, 48, 0.065, 12, false), tubeLeftMat);
+        scene.add(tubeLeft);
+
+        const tubeRightMat = new THREE.MeshBasicMaterial({
+            color: 0x06b6d4,
+            transparent: true,
+            opacity: 0.38
+        });
+        const tubeRight = new THREE.Mesh(new THREE.TubeGeometry(curveRight, 48, 0.065, 12, false), tubeRightMat);
+        scene.add(tubeRight);
+
+        // Partikel Aliran DNA Latar Belakang Sepanjang Konduit
+        const ambientPulseLeft = new THREE.Mesh(
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0x67e8f9 })
+        );
+        scene.add(ambientPulseLeft);
+
+        const ambientPulseRight = new THREE.Mesh(
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0x67e8f9 })
+        );
+        scene.add(ambientPulseRight);
+
+        // ==========================================
+        // 6. PROYEKTIL AKSI & CINCIN HOLOGRAFIK ISINSTANCE
+        // ==========================================
+        const pulse1 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.24, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+        );
+        pulse1.visible = false;
+        scene.add(pulse1);
+
+        const pulse2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.24, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+        );
+        pulse2.visible = false;
+        scene.add(pulse2);
+
+        // Cincin Verifikasi Holografik (untuk isinstance / issubclass)
+        const holoRingParent = new THREE.Mesh(
+            new THREE.TorusGeometry(2.15, 0.07, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0 })
+        );
+        holoRingParent.position.copy(POS_PARENT);
+        holoRingParent.rotation.x = Math.PI / 2;
+        scene.add(holoRingParent);
+
+        const holoRingMobil = new THREE.Mesh(
+            new THREE.TorusGeometry(1.75, 0.07, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0 })
+        );
+        holoRingMobil.position.copy(POS_MOBIL);
+        holoRingMobil.rotation.x = Math.PI / 2;
+        scene.add(holoRingMobil);
+
+        // ==========================================
+        // 7. LOGIKA 5 SKENARIO INTERAKTIF & KODE
+        // ==========================================
+        let activeScenario = null;
+
+        function highlightLines(lines, colorClass, dynamicHtml) {
+            document.querySelectorAll('.code-line').forEach(el => {
+                el.classList.remove('active-cyan', 'active-emerald', 'active-amber', 'active-purple');
+            });
+            lines.forEach(num => {
+                const el = document.getElementById(`line-${num}`);
+                if (el) el.classList.add(colorClass);
+            });
+            if (dynamicHtml) {
+                document.getElementById('dynamic-exec-line').innerHTML = dynamicHtml;
+            }
+        }
+
+        function appendConsole(cmd, out, colorClass = 'text-emerald-400') {
+            const term = document.getElementById('terminal-output');
+            const c = document.createElement('div');
+            c.className = 'text-slate-300 mt-1';
+            c.textContent = `>>> ${cmd}`;
+
+            const o = document.createElement('div');
+            o.className = colorClass;
+            o.textContent = out;
+
+            term.appendChild(c);
+            term.appendChild(o);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal-output').innerHTML =
+                `<div class="text-slate-500">&gt;&gt;&gt; # Console dibersihkan. Siap menerima perintah baru.</div>`;
+        }
+
+        function setStatusBanner(icon, title, desc, borderClass, titleColorClass, badgeText) {
+            const banner = document.getElementById('status-banner');
+            banner.className = `glass-panel rounded-xl px-4 py-3 border-l-4 pointer-events-auto transition-all duration-300 ${borderClass}`;
+            document.getElementById('status-icon').textContent = icon;
+            const tEl = document.getElementById('status-title');
+            tEl.textContent = title;
+            tEl.className = `text-xs font-mono font-bold uppercase tracking-wide ${titleColorClass}`;
+            document.getElementById('status-desc').textContent = desc;
+            if (badgeText) {
+                document.getElementById('state-badge').textContent = badgeText;
+            }
+        }
+
+        // --- SKENARIO 1: Aliran Pewarisan Dasar ---
+        function runScenarioInheritFlow() {
+            if (isAnimating) return;
+            isAnimating = true;
+            selectCodeTab('all');
+
+            highlightLines(
+                [1, 3, 4, 6, 11, 19],
+                'active-cyan',
+                `<span class="text-cyan-300 font-bold"># Mobil & Motor otomatis mewarisi merk, tahun, nyalakan_mesin()</span>`
+            );
+
+            playNotes(['C4', 'E4', 'G4'], '16n');
+            pulse1.visible = true;
+            pulse2.visible = true;
+            pulse1.material.color.setHex(0x22d3ee);
+            pulse2.material.color.setHex(0x22d3ee);
+            tubeLeftMat.opacity = 0.9;
+            tubeRightMat.opacity = 0.9;
+
+            activeScenario = { type: 'inherit_flow', progress: 0 };
+        }
+
+        // --- SKENARIO 2: Simulasi super().__init__() ---
+        function runScenarioSuperInit() {
+            if (isAnimating) return;
+            isAnimating = true;
+            selectCodeTab('all');
+
+            highlightLines(
+                [2, 3, 4, 12, 13, 14, 27],
+                'active-amber',
+                `<span class="text-amber-300 font-bold">avanza = Mobil("Toyota", 2024, 4)</span>  <span class="text-slate-400"># Eksekusi super().__init__</span>`
+            );
+
+            playNotes('A4', '16n');
+            pulse1.visible = true;
+            pulse2.visible = false;
+            pulse1.material.color.setHex(0xfbbf24);
+            tubeLeftMat.color.setHex(0xfbbf24);
+            tubeLeftMat.opacity = 0.95;
+
+            activeScenario = { type: 'super_init', progress: 0 };
+        }
+
+        // --- SKENARIO 3: Method Inheritance & MRO Lookup ---
+        function runScenarioInheritedMethod() {
+            if (isAnimating) return;
+            isAnimating = true;
+            selectCodeTab('all');
+
+            highlightLines(
+                [6, 7, 11, 29],
+                'active-cyan',
+                `<span class="text-cyan-300 font-bold">print(avanza.nyalakan_mesin())</span>  <span class="text-slate-400"># Dicari via MRO ke Kendaraan</span>`
+            );
+
+            playNotes('E4', '16n');
+            pulse1.visible = true;
+            pulse2.visible = false;
+            pulse1.material.color.setHex(0x38bdf8);
+            tubeLeftMat.opacity = 0.95;
+
+            activeScenario = { type: 'mro_method', progress: 0 };
+        }
+
+        // --- SKENARIO 4: Method Overriding ---
+        function runScenarioOverriding() {
+            if (isAnimating) return;
+            isAnimating = true;
+            selectCodeTab('all');
+
+            highlightLines(
+                [9, 10, 16, 17, 18, 24, 25, 29],
+                'active-emerald',
+                `<span class="text-emerald-300 font-bold">print(avanza.info())</span>; <span class="text-amber-300 font-bold">print(ninja.info())</span>`
+            );
+
+            playNotes(['E5', 'G5'], '16n');
+            pulse1.visible = true;
+            pulse2.visible = true;
+            pulse1.material.color.setHex(0x10b981);
+            pulse2.material.color.setHex(0xf59e0b);
+
+            activeScenario = { type: 'overriding', progress: 0 };
+        }
+
+        // --- SKENARIO 5: Cek isinstance() & issubclass() ---
+        function runScenarioInstanceCheck() {
+            if (isAnimating) return;
+            isAnimating = true;
+            selectCodeTab('all');
+
+            highlightLines(
+                [1, 11, 27, 29],
+                'active-purple',
+                `<span class="text-purple-300 font-bold">isinstance(avanza, Kendaraan)</span>  <span class="text-slate-400"># True (Hubungan IS-A)</span>`
+            );
+
+            playNotes(['C5', 'G5', 'B5'], '8n');
+            holoRingParent.material.opacity = 0.95;
+            holoRingMobil.material.opacity = 0.95;
+            tubeLeftMat.color.setHex(0xc084fc);
+            tubeLeftMat.opacity = 0.95;
+
+            activeScenario = { type: 'isinstance', progress: 0 };
+        }
+
+        // ==========================================
+        // 8. KONTROL UI (TABS KODE, KAMERA, LABEL, RESET)
+        // ==========================================
+        function selectCodeTab(tab) {
+            document.querySelectorAll('.code-tab').forEach(btn => {
+                btn.className = 'code-tab py-1 px-2 rounded text-slate-400 hover:text-white transition';
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            if (activeTab) {
+                activeTab.className = 'code-tab py-1 px-2 rounded bg-cyan-500/25 text-cyan-300 font-semibold transition';
+            }
+
+            const bParent = document.getElementById('block-parent');
+            const bMobil = document.getElementById('block-mobil');
+            const bMotor = document.getElementById('block-motor');
+
+            bParent.style.display = (tab === 'all' || tab === 'parent') ? 'block' : 'none';
+            bMobil.style.display = (tab === 'all' || tab === 'mobil') ? 'block' : 'none';
+            bMotor.style.display = (tab === 'all' || tab === 'motor') ? 'block' : 'none';
+        }
+
+        let targetCamPos = null;
+        let targetLookAt = new THREE.Vector3(-0.8, 0.2, 0);
+
+        function setCameraPreset(preset) {
+            document.querySelectorAll('.cam-btn').forEach(btn => {
+                btn.className = 'cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white';
+            });
+            const activeBtn = document.getElementById(`cam-${preset}`);
+            if (activeBtn) {
+                activeBtn.className = 'cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition bg-cyan-500 text-slate-950 shadow';
+            }
+
+            if (preset === 'overview') {
+                targetCamPos = new THREE.Vector3(-1.2, 1.5, 13.5);
+                targetLookAt.set(-0.8, 0.2, 0);
+            } else if (preset === 'parent') {
+                targetCamPos = new THREE.Vector3(-1.2, 3.2, 6.2);
+                targetLookAt.copy(POS_PARENT);
+            } else if (preset === 'mobil') {
+                targetCamPos = new THREE.Vector3(-4.5, -1.2, 6.0);
+                targetLookAt.copy(POS_MOBIL);
+            } else if (preset === 'motor') {
+                targetCamPos = new THREE.Vector3(2.1, -1.2, 6.0);
+                targetLookAt.copy(POS_MOTOR);
+            }
+        }
+
+        function toggle3DLabels() {
+            show3DLabels = !show3DLabels;
+            const layer = document.getElementById('labels-layer');
+            const btn = document.getElementById('btn-toggle-labels');
+            layer.style.opacity = show3DLabels ? '1' : '0';
+            btn.textContent = show3DLabels ? '🏷️ Label: On' : '🏷️ Label: Off';
+        }
+
+        function toggleCodePanel() {
+            const panel = document.getElementById('code-panel');
+            const label = document.getElementById('code-toggle-label');
+            codePanelVisible = !codePanelVisible;
+            if (codePanelVisible) {
+                panel.style.opacity = '1';
+                panel.style.pointerEvents = 'auto';
+                panel.style.transform = 'translateX(0)';
+                if (label) label.textContent = 'Sembunyikan Kode';
+            } else {
+                panel.style.opacity = '0';
+                panel.style.pointerEvents = 'none';
+                panel.style.transform = 'translateX(30px)';
+                if (label) label.textContent = 'Tampilkan Kode';
+            }
+        }
+
+        function resetAllSimulation() {
+            activeScenario = null;
+            isAnimating = false;
+            pulse1.visible = false;
+            pulse2.visible = false;
+            holoRingParent.material.opacity = 0;
+            holoRingMobil.material.opacity = 0;
+            tubeLeftMat.color.setHex(0x06b6d4);
+            tubeLeftMat.opacity = 0.38;
+            tubeRightMat.color.setHex(0x06b6d4);
+            tubeRightMat.opacity = 0.38;
+            mobilInheritedMat.emissiveIntensity = 0.25;
+            motorInheritedMat.emissiveIntensity = 0.25;
+            mobilCustomMat.emissiveIntensity = 0.75;
+            motorCustomMat.emissiveIntensity = 0.75;
+
+            highlightLines([], 'active-cyan', `<span class="text-slate-400"># Pilih tombol skenario di bawah untuk menjalankan...</span>`);
+            setCameraPreset('overview');
+            setStatusBanner(
+                '🧬',
+                'Hierarki Kelas Siap Dieksplorasi',
+                'Simulasi telah direset. Silakan pilih skenario pewarisan di panel bawah.',
+                'border-l-cyan-400',
+                'text-cyan-300',
+                'Status: Reset Berhasil'
+            );
+        }
+
+        // ==========================================
+        // 9. PROYEKSI POSISI 3D KE LABEL HTML 2D
+        // ==========================================
+        function updateScreenLabel(elementId, worldPos, offsetY = 0) {
+            const el = document.getElementById(elementId);
+            if (!el || !show3DLabels) return;
+
+            const vec = worldPos.clone();
+            vec.y += offsetY;
+            vec.project(camera);
+
+            // Sembunyikan jika berada di belakang kamera
+            if (vec.z > 1) {
+                el.style.display = 'none';
+                return;
+            }
+            el.style.display = 'block';
+
+            const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(vec.y * 0.5) + 0.5) * window.innerHeight;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+        }
+
+        // ==========================================
+        // 10. ANIMATION LOOP UTAMA
+        // ==========================================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+
+            // Animasi idle node 3D
+            parentCore.rotation.y = elapsed * 0.6;
+            parentRing1.rotation.z = elapsed * 0.5;
+            parentRing2.rotation.x = -elapsed * 0.4;
+            parentGroup.position.y = POS_PARENT.y + Math.sin(elapsed * 1.4) * 0.08;
+
+            parentAttrOrbs.forEach((orb, i) => {
+                const a = elapsed * 1.1 + (i / 4) * Math.PI * 2;
+                orb.position.set(Math.cos(a) * 1.45, Math.sin(elapsed * 2 + i) * 0.15, Math.sin(a) * 1.45);
+            });
+
+            mobilRing.rotation.z = elapsed * 0.7;
+            motorRing.rotation.z = -elapsed * 0.7;
+
+            // Aliran DNA halus terus-menerus di sepanjang konduit
+            const flowT = (elapsed * 0.35) % 1;
+            ambientPulseLeft.position.copy(curveLeft.getPointAt(flowT));
+            ambientPulseRight.position.copy(curveRight.getPointAt((flowT + 0.5) % 1));
+
+            // Eksekusi Skenario Interaktif
+            if (activeScenario) {
+                activeScenario.progress += 0.018;
+                const p = activeScenario.progress;
+
+                if (activeScenario.type === 'inherit_flow') {
+                    // Pulsa energi mengalir turun dari Parent ke Mobil dan Motor
+                    if (p <= 1.0) {
+                        pulse1.position.copy(curveLeft.getPointAt(p));
+                        pulse2.position.copy(curveRight.getPointAt(p));
+                        parentCoreMat.emissiveIntensity = 1.6;
+                    } else {
+                        pulse1.visible = false;
+                        pulse2.visible = false;
+                        parentCoreMat.emissiveIntensity = 0.85;
+                        tubeLeftMat.opacity = 0.45;
+                        tubeRightMat.opacity = 0.45;
+                        mobilInheritedMat.emissiveIntensity = 1.35;
+                        motorInheritedMat.emissiveIntensity = 1.35;
+
+                        playNotes(['G4', 'C5'], '8n');
+                        setStatusBanner(
+                            '🧬',
+                            'Pewarisan Berhasil: Subclass Mewarisi Struktur Parent!',
+                            'Bagian inti atas (Cyan) pada Mobil dan Motor kini aktif—mewarisi self.merk, self.tahun, dan nyalakan_mesin() tanpa menulis ulang kode!',
+                            'border-l-cyan-400',
+                            'text-cyan-300',
+                            'Status: Inherited Core Aktif'
+                        );
+                        appendConsole(
+                            'dir(Mobil)  # Cek anggota kelas warisan',
+                            "['info', 'merk', 'nyalakan_mesin', 'tahun', 'jumlah_pintu']",
+                            'text-cyan-300'
+                        );
+
+                        activeScenario = null;
+                        isAnimating = false;
+                    }
+                } else if (activeScenario.type === 'super_init') {
+                    // Fase 1 (0 -> 0.45): Sinar naik dari Mobil ke Parent untuk memanggil super().__init__()
+                    // Fase 2 (0.45 -> 0.90): Sinar turun dari Parent membawa merk & tahun ke Mobil
+                    // Fase 3 (0.90 -> 1.15): Inisialisasi atribut unik jumlah_pintu di modul bawah Mobil
+                    if (p < 0.45) {
+                        const t = p / 0.45;
+                        pulse1.position.copy(curveLeft.getPointAt(1 - t));
+                    } else if (p < 0.90) {
+                        if (p - 0.018 < 0.45) {
+                            parentCoreMat.emissiveIntensity = 2.0;
+                            playNotes('E5', '16n');
+                        }
+                        const t = (p - 0.45) / 0.45;
+                        pulse1.material.color.setHex(0x22d3ee);
+                        pulse1.position.copy(curveLeft.getPointAt(t));
+                    } else if (p < 1.15) {
+                        pulse1.visible = false;
+                        parentCoreMat.emissiveIntensity = 0.85;
+                        mobilInheritedMat.emissiveIntensity = 1.4;
+                        mobilCustomMat.emissiveIntensity = 1.8;
+                    } else {
+                        mobilCustomMat.emissiveIntensity = 0.75;
+                        tubeLeftMat.color.setHex(0x06b6d4);
+                        tubeLeftMat.opacity = 0.42;
+                        playNotes(['C5', 'E5'], '8n');
+
+                        setStatusBanner(
+                            '⬆️',
+                            'Eksekusi super().__init__("Toyota", 2024) Selesai!',
+                            'Urutan eksekusi: (1) Mobil memanggil super().__init__() ke Kendaraan untuk mengisi merk & tahun, lalu (2) mengisi atribut miliknya sendiri: jumlah_pintu = 4.',
+                            'border-l-amber-400',
+                            'text-amber-300',
+                            'Status: super().__init__() Sukses'
+                        );
+                        appendConsole(
+                            'avanza = Mobil("Toyota", 2024, 4); vars(avanza)',
+                            "{'merk': 'Toyota', 'tahun': 2024, 'jumlah_pintu': 4}",
+                            'text-amber-300'
+                        );
+
+                        activeScenario = null;
+                        isAnimating = false;
+                    }
+                } else if (activeScenario.type === 'mro_method') {
+                    // Sinar pencarian method naik dari Mobil ke Parent Kendaraan (MRO)
+                    if (p < 0.55) {
+                        const t = p / 0.55;
+                        pulse1.position.copy(curveLeft.getPointAt(1 - t));
+                    } else if (p < 1.0) {
+                        if (p - 0.018 < 0.55) {
+                            parentCoreMat.emissiveIntensity = 2.2;
+                            parentRing1.scale.setScalar(1.22);
+                            playNotes(['G4', 'B4', 'D5'], '8n');
+                        }
+                        pulse1.visible = false;
+                        parentRing1.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+                    } else {
+                        parentCoreMat.emissiveIntensity = 0.85;
+                        parentRing1.scale.setScalar(1);
+                        tubeLeftMat.opacity = 0.42;
+
+                        setStatusBanner(
+                            '🔍',
+                            'Method Resolution Order (MRO): Ditemukan di Kendaraan!',
+                            'Python mencari nyalakan_mesin() di Mobil → Tidak ada → Naik ke Superclass Kendaraan → Ditemukan & dijalankan!',
+                            'border-l-blue-400',
+                            'text-blue-300',
+                            'Status: MRO Lookup Berhasil'
+                        );
+                        appendConsole(
+                            'print(avanza.nyalakan_mesin())',
+                            '"Mesin Toyota menyala: Brumm!"  # (Dieksekusi dari class Kendaraan)',
+                            'text-cyan-300'
+                        );
+
+                        activeScenario = null;
+                        isAnimating = false;
+                    }
+                } else if (activeScenario.type === 'overriding') {
+                    // Kedua Subclass menjalankan implementasi info() masing-masing secara mandiri
+                    if (p < 0.4) {
+                        // Mobil memanggil super().info() sebentar lalu menggabungkannya
+                        const t = p / 0.4;
+                        pulse1.position.copy(curveLeft.getPointAt(1 - t));
+                        pulse2.visible = false;
+                        motorCustomMat.emissiveIntensity = 1.9;
+                    } else if (p < 0.85) {
+                        pulse1.visible = false;
+                        mobilCustomMat.emissiveIntensity = 2.0;
+                        motorCustomMat.emissiveIntensity = 2.0;
+                        mobilRing.scale.setScalar(1.15);
+                        motorRing.scale.setScalar(1.15);
+                    } else {
+                        mobilCustomMat.emissiveIntensity = 0.75;
+                        motorCustomMat.emissiveIntensity = 0.75;
+                        mobilRing.scale.setScalar(1);
+                        motorRing.scale.setScalar(1);
+                        playNotes(['C5', 'E5', 'G5'], '8n');
+
+                        setStatusBanner(
+                            '⚡',
+                            'Method Overriding: Perilaku Induk Ditimpa Subclass!',
+                            'Mobil.info() memanggil super().info() + menambah jumlah pintu, sedangkan Motor.info() menimpa sepenuhnya dengan info jenis stang.',
+                            'border-l-emerald-400',
+                            'text-emerald-300',
+                            'Status: Overriding Terdemonstrasi'
+                        );
+                        appendConsole(
+                            'print(avanza.info()) | print(ninja.info())',
+                            'Mobil Toyota (2024) • 4 Pintu  |  Motor Kawasaki • Stang Jepit',
+                            'text-emerald-300'
+                        );
+
+                        activeScenario = null;
+                        isAnimating = false;
+                    }
+                } else if (activeScenario.type === 'isinstance') {
+                    // Cincin holografik ungu berdenyut menghubungkan objek Mobil ke kelas Mobil & Kendaraan
+                    if (p < 1.1) {
+                        holoRingParent.rotation.z = elapsed * 2.5;
+                        holoRingMobil.rotation.z = -elapsed * 2.5;
+                        const s = 1 + Math.sin(p * Math.PI * 3) * 0.08;
+                        holoRingParent.scale.setScalar(s);
+                        holoRingMobil.scale.setScalar(s);
+                    } else {
+                        holoRingParent.material.opacity = 0;
+                        holoRingMobil.material.opacity = 0;
+                        tubeLeftMat.color.setHex(0x06b6d4);
+                        tubeLeftMat.opacity = 0.42;
+
+                        setStatusBanner(
+                            '🛡️',
+                            'Verifikasi Hubungan "IS-A": Kedua Pengecekan Bernilai True!',
+                            'Karena Mobil mewarisi Kendaraan, objek avanza adalah instance dari Mobil sekaligus instance dari Superclass Kendaraan.',
+                            'border-l-purple-400',
+                            'text-purple-300',
+                            'Status: IS-A Verified (True)'
+                        );
+                        appendConsole(
+                            'isinstance(avanza, Kendaraan), issubclass(Mobil, Kendaraan)',
+                            '(True, True)',
+                            'text-purple-300'
+                        );
+
+                        activeScenario = null;
+                        isAnimating = false;
+                    }
+                }
+            }
+
+            // Transisi Kamera Halus
+            if (targetCamPos) {
+                camera.position.lerp(targetCamPos, 0.07);
+                controls.target.lerp(targetLookAt, 0.07);
+                if (camera.position.distanceTo(targetCamPos) < 0.05) {
+                    targetCamPos = null;
+                }
+            }
+
+            starField.rotation.y += 0.0003;
+            controls.update();
+
+            // Perbarui posisi label HTML 3D agar selalu menempel pada node
+            updateScreenLabel('label-parent', parentGroup.position, 2.05);
+            updateScreenLabel('label-mobil', mobilGroup.position, -1.65);
+            updateScreenLabel('label-motor', motorGroup.position, -1.65);
+
+            renderer.render(scene, camera);
+        }
+
+        // Responsive Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = function () {
+            if (window.innerWidth < 1024) {
+                toggleCodePanel();
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>

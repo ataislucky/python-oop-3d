@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisasi 3D: Abstraksi & ABC dalam Python</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tone.js untuk efek suara sintetik interaktif tanpa file eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050811;
+            user-select: none;
+        }
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        /* Custom scrollbar untuk panel kode */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.6);
+        }
+        .glass-panel {
+            background: rgba(10, 15, 29, 0.78);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+        }
+        .pulse-ring {
+            animation: pulseGlow 2.5s infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 12px rgba(6, 182, 212, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.85); }
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased">
+    
+    <!-- Container Utama WebGL 3D -->
+    <div id="canvas-container"></div>
+
+    <!-- Header Judul & Status Mode (Kiri Atas) -->
+    <header class="fixed top-4 left-4 right-4 md:right-auto z-20 pointer-events-none flex flex-col gap-2 max-w-lg">
+        <div class="glass-panel rounded-2xl p-4 pointer-events-auto">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span class="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">Python OOP • Konsep Abstraksi</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto;">
+                <a href="index.html" style="background: rgba(15,23,42,0.85); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; transition: 0.2s;">
+                    ← Portal
+                </a>
+                <button id="btn-sound" title="Aktifkan/Matikan Efek Suara" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition text-xs font-mono flex items-center gap-1.5 border border-slate-700">
+                    <span id="sound-icon">🔇</span> <span class="hidden sm:inline" id="sound-label">Suara Off</span>
+                </button>
+                </div>
+            </div>
+            <h1 class="text-lg sm:text-xl font-bold text-white mt-1 tracking-tight">
+                Kapsul Abstraksi & <span class="text-cyan-400">Abstract Base Class</span>
+            </h1>
+            <p id="concept-subtitle" class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                Pengguna cukup memanggil antarmuka publik <code class="text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded font-mono">.send("Halo!")</code> tanpa perlu mengetahui kerumitan mesin di dalamnya.
+            </p>
+        </div>
+
+        <!-- Notifikasi / Status Log Interaktif -->
+        <div id="status-banner" class="glass-panel rounded-xl px-4 py-2.5 border-l-4 border-l-cyan-400 pointer-events-auto transition-all duration-300 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 text-xs sm:text-sm">
+                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-cyan-400 shrink-0"></span>
+                <span id="status-text" class="font-medium text-slate-200">Siap! Klik "Jalankan .send()" atau putar objek 3D dengan mouse.</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Preset Sudut Kamera 3D (Tengah Atas / Kanan Atas Mobile) -->
+    <div class="fixed top-4 right-4 z-20 hidden lg:flex flex-col gap-2 items-end">
+        <div class="glass-panel rounded-2xl p-2 flex items-center gap-1.5">
+            <span class="text-[11px] font-mono text-slate-400 px-2">Kamera:</span>
+            <button onclick="setCameraPreset('front')" class="cam-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition">
+                Tampak Depan
+            </button>
+            <button onclick="setCameraPreset('top')" class="cam-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/70 text-slate-300 hover:bg-slate-700 transition">
+                Antarmuka Atas
+            </button>
+            <button onclick="setCameraPreset('inside')" class="cam-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/70 text-slate-300 hover:bg-slate-700 transition">
+                Intip Mesin Dalam
+            </button>
+        </div>
+        <button id="btn-toggle-code" onclick="toggleCodePanel()" class="glass-panel rounded-xl px-3.5 py-2 text-xs font-mono text-cyan-300 hover:bg-slate-800/90 transition flex items-center gap-2 border border-cyan-500/30">
+            <span>{ }</span> <span id="code-toggle-text">Sembunyikan Kode Python</span>
+        </button>
+    </div>
+
+    <!-- Panel Kode Python Sinkronisasi Real-Time (Kanan) -->
+    <aside id="code-panel" class="fixed top-28 right-4 bottom-36 w-[92vw] sm:w-[400px] lg:w-[430px] z-20 glass-panel rounded-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <div class="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-mono text-slate-300 ml-1.5">abstraksi_messenger.py</span>
+            </div>
+            <span id="code-badge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                WhatsAppSender
+            </span>
+        </div>
+
+        <div class="p-3.5 overflow-y-auto flex-1 font-mono text-[11px] sm:text-xs leading-relaxed space-y-3">
+            <!-- Bagian 1: Abstract Base Class (Tidak Pernah Berubah) -->
+            <div class="rounded-xl bg-cyan-950/35 border border-cyan-500/30 p-2.5">
+                <div class="flex items-center justify-between text-[10px] text-cyan-400 font-semibold mb-1 uppercase tracking-wider">
+                    <span>1. Kontrak Abstrak (Cangkang Luar)</span>
+                    <span>abc.ABC</span>
+                </div>
+<pre class="text-slate-200 overflow-x-auto"><code><span class="text-purple-400">from</span> abc <span class="text-purple-400">import</span> ABC, abstractmethod
+
+<span class="text-purple-400">class</span> <span class="text-cyan-300 font-bold">Messenger</span>(ABC):
+    <span class="text-amber-300">@abstractmethod</span>
+    <span class="text-purple-400">def</span> <span class="text-cyan-300 font-bold">send</span>(self, pesan: str) -> None:
+        <span class="text-slate-400">"""Wajib diimplementasikan anak kelas"""</span>
+        <span class="text-purple-400">pass</span></code></pre>
+            </div>
+
+            <!-- Bagian 2: Implementasi Konkret (Berubah saat Hot-Swap) -->
+            <div id="concrete-code-box" class="rounded-xl bg-emerald-950/30 border border-emerald-500/30 p-2.5 transition-colors duration-300">
+                <div class="flex items-center justify-between text-[10px] font-semibold mb-1 uppercase tracking-wider" id="concrete-code-header">
+                    <span class="text-emerald-400">2. Detail Mesin Internal (Tersembunyi)</span>
+                    <span class="text-emerald-300">Implementasi</span>
+                </div>
+                <pre id="concrete-code-content" class="text-slate-200 overflow-x-auto"></pre>
+            </div>
+
+            <!-- Bagian 3: Kode Pemanggil / Client (Bukti Abstraksi) -->
+            <div id="client-code-box" class="rounded-xl bg-slate-900/90 border border-slate-700/80 p-2.5 transition-all duration-300">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 font-semibold mb-1 uppercase tracking-wider">
+                    <span>3. Kode Pengguna (Tidak Perlu Diubah!)</span>
+                    <span class="text-cyan-400">Polimorfisme</span>
+                </div>
+<pre class="text-slate-200 overflow-x-auto"><code><span class="text-purple-400">def</span> <span class="text-blue-300">kirim_notifikasi</span>(layanan: <span class="text-cyan-300">Messenger</span>):
+    <span class="text-slate-400"># Pemanggil tidak peduli isi mesinnya</span>
+    layanan.<span class="text-cyan-300 font-bold">send</span>(<span class="text-emerald-300">"Halo Mahasiswa!"</span>)</code></pre>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Panel Kontrol Bawah (Floating Dock untuk Dosen) -->
+    <footer class="fixed bottom-4 left-4 right-4 z-20 flex flex-col items-center pointer-events-none">
+        <div class="glass-panel rounded-2xl p-3 sm:p-3.5 pointer-events-auto w-full max-w-5xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            
+            <!-- Kontrol 1: Mode Black-Box vs X-Ray -->
+            <div class="flex flex-col gap-1">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 px-1">1. Visibilitas Kapsul (Abstraksi)</span>
+                <div class="grid grid-cols-2 gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+                    <button id="btn-mode-blackbox" onclick="setAbstractionMode('blackbox')" class="px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-cyan-500 text-slate-950 shadow-lg">
+                        <span>🛡️</span> Black-Box
+                    </button>
+                    <button id="btn-mode-xray" onclick="setAbstractionMode('xray')" class="px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:text-white">
+                        <span>🔬</span> Mode X-Ray
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kontrol 2: Hot-Swap Mesin Implementasi -->
+            <div class="flex flex-col gap-1 flex-1">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 px-1">2. Ganti Mesin Implementasi (Hot-Swap Subclass)</span>
+                <div class="grid grid-cols-3 gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+                    <button id="btn-eng-whatsapp" onclick="swapEngine('whatsapp')" class="eng-btn px-2.5 py-2 rounded-lg text-xs font-mono font-semibold transition bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 truncate">
+                        WhatsApp
+                    </button>
+                    <button id="btn-eng-email" onclick="swapEngine('email')" class="eng-btn px-2.5 py-2 rounded-lg text-xs font-mono font-semibold transition text-slate-400 hover:text-amber-300 truncate">
+                        EmailSMTP
+                    </button>
+                    <button id="btn-eng-sms" onclick="swapEngine('sms')" class="eng-btn px-2.5 py-2 rounded-lg text-xs font-mono font-semibold transition text-slate-400 hover:text-purple-300 truncate">
+                        SMSTwilio
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kontrol 3: Eksekusi Method Abstrak -->
+            <div class="flex flex-col gap-1">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-cyan-400 px-1">3. Panggil Antarmuka Publik</span>
+                <div class="flex items-center gap-2">
+                    <button id="btn-trigger-send" onclick="triggerSendAction()" class="flex-1 md:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm font-mono transition shadow-lg pulse-ring flex items-center justify-center gap-2">
+                        <span>⚡</span> Jalankan .send("Halo!")
+                    </button>
+                    <button onclick="toggleCodePanel()" class="lg:hidden px-3 py-2.5 rounded-xl bg-slate-800 text-cyan-300 border border-slate-700 text-xs font-mono">
+                        { } Kode
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. DATA IMPLEMENTASI & KODE PYTHON
+        // ==========================================
+        const ENGINES_DATA = {
+            whatsapp: {
+                name: 'WhatsAppSender',
+                colorHex: 0x10b981,
+                accentCss: 'emerald',
+                badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                boxClass: 'bg-emerald-950/30 border-emerald-500/30',
+                headerColor: 'text-emerald-400',
+                description: 'Menggunakan enkripsi End-to-End Signal Protocol & WebSocket JSON payload.',
+                code: `<span class="text-purple-400">class</span> <span class="text-emerald-300 font-bold">WhatsAppSender</span>(<span class="text-cyan-300">Messenger</span>):
+    <span class="text-purple-400">def</span> <span class="text-emerald-300 font-bold">send</span>(self, pesan: str) -> None:
+        <span class="text-slate-400"># Kerumitan tersembunyi di balik layar:</span>
+        sesi = self._buat_koneksi_websocket()
+        kunci = self._enkripsi_signal_e2e(pesan)
+        sesi.kirim_paket_json(kunci)
+        sesi.tutup()`
+            },
+            email: {
+                name: 'EmailSMTPSender',
+                colorHex: 0xf59e0b,
+                accentCss: 'amber',
+                badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                boxClass: 'bg-amber-950/30 border-amber-500/30',
+                headerColor: 'text-amber-400',
+                description: 'Membuka soket TCP port 465, jabat tangan SSL/TLS, & encoding MIME.',
+                code: `<span class="text-purple-400">class</span> <span class="text-amber-300 font-bold">EmailSMTPSender</span>(<span class="text-cyan-300">Messenger</span>):
+    <span class="text-purple-400">def</span> <span class="text-amber-300 font-bold">send</span>(self, pesan: str) -> None:
+        <span class="text-slate-400"># Kerumitan protokol SMTP & SSL:</span>
+        sock = socket.create_connection((<span class="text-amber-200">"smtp.server"</span>, <span class="text-rose-300">465</span>))
+        tls = ssl.wrap_socket(sock)
+        tls.sendall(<span class="text-amber-200">f"MIME-Version: 1.0\\r\\n{pesan}"</span>)
+        tls.close()`
+            },
+            sms: {
+                name: 'SMSTwilioSender',
+                colorHex: 0xa855f7,
+                accentCss: 'purple',
+                badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+                boxClass: 'bg-purple-950/30 border-purple-500/30',
+                headerColor: 'text-purple-400',
+                description: 'Otentikasi REST API OAuth2, konversi GSM-7 bit, & transmisi menara seluler.',
+                code: `<span class="text-purple-400">class</span> <span class="text-purple-300 font-bold">SMSTwilioSender</span>(<span class="text-cyan-300">Messenger</span>):
+    <span class="text-purple-400">def</span> <span class="text-purple-300 font-bold">send</span>(self, pesan: str) -> None:
+        <span class="text-slate-400"># Kerumitan gateway telekomunikasi:</span>
+        token = self._autentikasi_oauth2_gateway()
+        gsm_bytes = self._encode_gsm7_bit(pesan)
+        requests.post(<span class="text-purple-200">"https://api.sms/v1"</span>, data=gsm_bytes)`
+            }
+        };
+
+        // State Aplikasi
+        let currentMode = 'blackbox'; // 'blackbox' | 'xray'
+        let currentEngineKey = 'whatsapp';
+        let isExecuting = false;
+        let isSwapping = false;
+        let soundEnabled = false;
+        let codePanelVisible = true;
+
+        // ==========================================
+        // 2. AUDIO ENGINE (TONE.JS - OPSIONAL)
+        // ==========================================
+        let synth = null;
+        document.getElementById('btn-sound').addEventListener('click', async () => {
+            if (!soundEnabled) {
+                await Tone.start();
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -10;
+                soundEnabled = true;
+                document.getElementById('sound-icon').textContent = '🔊';
+                document.getElementById('sound-label').textContent = 'Suara On';
+                playTone('C5', '16n');
+            } else {
+                soundEnabled = false;
+                document.getElementById('sound-icon').textContent = '🔇';
+                document.getElementById('sound-label').textContent = 'Suara Off';
+            }
+        });
+
+        function playTone(note, duration = '16n') {
+            if (soundEnabled && synth) {
+                try {
+                    synth.triggerAttackRelease(note, duration);
+                } catch (e) {}
+            }
+        }
+
+        // ==========================================
+        // 3. INISIALISASI SCENE 3D THREE.JS
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050811, 0.032);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2.2, 9.5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.minDistance = 4.5;
+        controls.maxDistance = 18;
+        controls.maxPolarAngle = Math.PI * 0.85;
+
+        // Pencahayaan Dramatis High-Tech
+        const ambientLight = new THREE.AmbientLight(0x1e293b, 1.8);
+        scene.add(ambientLight);
+
+        const cyanLight = new THREE.PointLight(0x06b6d4, 2.5, 20);
+        cyanLight.position.set(0, 5, 4);
+        scene.add(cyanLight);
+
+        const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.5);
+        rimLight.position.set(-5, 6, -5);
+        scene.add(rimLight);
+
+        const engineInternalLight = new THREE.PointLight(0x10b981, 3.0, 8);
+        engineInternalLight.position.set(0, 0, 0);
+        scene.add(engineInternalLight);
+
+        // Lantai Grid Futuristik
+        const gridHelper = new THREE.GridHelper(30, 30, 0x0e7490, 0x0f172a);
+        gridHelper.position.y = -3.2;
+        scene.add(gridHelper);
+
+        // Partikel Bintang Latar
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 400;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i++) {
+            starPos[i] = (Math.random() - 0.5) * 45;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.08, transparent: true, opacity: 0.5 });
+        const starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+
+        // ==========================================
+        // 4. PEMBUATAN TEKSTUR LABEL 3D (CANVAS TEXTURE)
+        // ==========================================
+        function createLabelTexture(text, subtext, bgColor = '#083344', borderColor = '#22d3ee') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 160;
+            const ctx = canvas.getContext('2d');
+
+            // Background rounded
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(8, 8, 496, 144, 24);
+            ctx.fill();
+
+            // Border
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+
+            // Main Text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 34px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, 256, 74);
+
+            // Subtext
+            ctx.fillStyle = '#67e8f9';
+            ctx.font = '600 22px "Inter", sans-serif';
+            ctx.fillText(subtext, 256, 118);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        // ==========================================
+        // 5. OBJEK UTAMA: KAPSUL ABSTRAK (ABC)
+        // ==========================================
+        const capsuleGroup = new THREE.Group();
+        scene.add(capsuleGroup);
+
+        // Cincin Rangka Atas & Bawah (Kontrak Interface Cyan)
+        const ringGeo = new THREE.TorusGeometry(2.05, 0.09, 16, 64);
+        const ringMat = new THREE.MeshStandardMaterial({
+            color: 0x06b6d4,
+            emissive: 0x0891b2,
+            emissiveIntensity: 0.8,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+
+        const topRing = new THREE.Mesh(ringGeo, ringMat);
+        topRing.rotation.x = Math.PI / 2;
+        topRing.position.y = 1.9;
+        capsuleGroup.add(topRing);
+
+        const bottomRing = new THREE.Mesh(ringGeo, ringMat);
+        bottomRing.rotation.x = Math.PI / 2;
+        bottomRing.position.y = -1.9;
+        capsuleGroup.add(bottomRing);
+
+        // Pilar Vertikal Pelindung Kapsul (4 buah)
+        const pillarGeo = new THREE.CylinderGeometry(0.05, 0.05, 3.8, 12);
+        for (let i = 0; i < 4; i++) {
+            const angle = (i * Math.PI) / 2 + Math.PI / 4;
+            const pillar = new THREE.Mesh(pillarGeo, ringMat);
+            pillar.position.set(Math.cos(angle) * 2.02, 0, Math.sin(angle) * 2.02);
+            capsuleGroup.add(pillar);
+        }
+
+        // Dinding Silinder Kapsul (Berubah Opacity saat Black-Box vs X-Ray)
+        const shellGeo = new THREE.CylinderGeometry(2.0, 2.0, 3.8, 48, 1, true);
+        const shellMat = new THREE.MeshPhysicalMaterial({
+            color: 0x0f172a,
+            emissive: 0x083344,
+            emissiveIntensity: 0.35,
+            metalness: 0.65,
+            roughness: 0.18,
+            transparent: true,
+            opacity: 0.94, // Default Black-Box (Buram/Solid)
+            side: THREE.DoubleSide
+        });
+        const capsuleShell = new THREE.Mesh(shellGeo, shellMat);
+        capsuleGroup.add(capsuleShell);
+
+        // Tutup Atas & Bawah Silinder
+        const capGeo = new THREE.CylinderGeometry(2.0, 2.0, 0.15, 48);
+        const capMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            metalness: 0.8,
+            roughness: 0.25
+        });
+        const topCap = new THREE.Mesh(capGeo, capMat);
+        topCap.position.y = 1.92;
+        capsuleGroup.add(topCap);
+
+        const bottomCap = new THREE.Mesh(capGeo, capMat);
+        bottomCap.position.y = -1.92;
+        capsuleGroup.add(bottomCap);
+
+        // Tombol Port Antarmuka Publik di Atas Kapsul: .send("Halo!")
+        const portGroup = new THREE.Group();
+        portGroup.position.set(0, 2.15, 0);
+        capsuleGroup.add(portGroup);
+
+        const portBaseGeo = new THREE.CylinderGeometry(0.85, 1.0, 0.3, 32);
+        const portBaseMat = new THREE.MeshStandardMaterial({
+            color: 0x06b6d4,
+            emissive: 0x06b6d4,
+            emissiveIntensity: 0.6,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+        const portBase = new THREE.Mesh(portBaseGeo, portBaseMat);
+        portGroup.add(portBase);
+
+        // Papan Label Mengambang di Atas Port
+        const labelPlaneGeo = new THREE.PlaneGeometry(3.2, 1.0);
+        const labelTex = createLabelTexture('messenger.send("Halo!")', '@abstractmethod • Antarmuka Publik');
+        const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
+        const labelMesh = new THREE.Mesh(labelPlaneGeo, labelMat);
+        labelMesh.position.set(0, 0.95, 0);
+        portGroup.add(labelMesh);
+
+        // Pipa Output di Samping Kanan Kapsul (Hasil Eksekusi Bersih)
+        const outPortGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.6, 24);
+        const outPort = new THREE.Mesh(outPortGeo, portBaseMat);
+        outPort.rotation.z = Math.PI / 2;
+        outPort.position.set(2.15, 0, 0);
+        capsuleGroup.add(outPort);
+
+        // ==========================================
+        // 6. MESIN INTERNAL KOMPLEKS (IMPLEMENTASI KONKRET)
+        // ==========================================
+        let activeEngineGroup = new THREE.Group();
+        capsuleGroup.add(activeEngineGroup);
+
+        let rotatingParts = [];
+        let dataNodes = [];
+
+        function buildInternalEngine(type) {
+            const group = new THREE.Group();
+            rotatingParts = [];
+            dataNodes = [];
+
+            const config = ENGINES_DATA[type];
+            const mainColor = config.colorHex;
+
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: mainColor,
+                emissive: mainColor,
+                emissiveIntensity: 0.7,
+                metalness: 0.6,
+                roughness: 0.2
+            });
+
+            const wireMat = new THREE.MeshStandardMaterial({
+                color: 0x64748b,
+                metalness: 0.85,
+                roughness: 0.3
+            });
+
+            if (type === 'whatsapp') {
+                // Mesin 1: Matriks Node Enkripsi E2E & WebSocket (Hijau)
+                const coreOcta = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 1), coreMat);
+                group.add(coreOcta);
+                rotatingParts.push({ mesh: coreOcta, speedX: 0.015, speedY: 0.025, speedZ: 0 });
+
+                // Cincin Orbit Enkripsi
+                for (let i = 0; i < 3; i++) {
+                    const orbit = new THREE.Mesh(new THREE.TorusGeometry(1.15 + i * 0.18, 0.03, 12, 48), coreMat);
+                    orbit.rotation.set(i * 0.8, i * 0.5, 0);
+                    group.add(orbit);
+                    rotatingParts.push({ mesh: orbit, speedX: 0.02 * (i + 1), speedY: -0.015, speedZ: 0.01 });
+                }
+
+                // Node-node Data Mengelilingi Inti
+                const nodeGeo = new THREE.SphereGeometry(0.14, 16, 16);
+                for (let i = 0; i < 8; i++) {
+                    const node = new THREE.Mesh(nodeGeo, coreMat);
+                    const angle = (i / 8) * Math.PI * 2;
+                    node.position.set(Math.cos(angle) * 1.35, Math.sin(angle * 2) * 0.7, Math.sin(angle) * 1.35);
+                    group.add(node);
+                    dataNodes.push(node);
+                }
+
+            } else if (type === 'email') {
+                // Mesin 2: Roda Gigi Mekanis SMTP & Pipa SSL Handshake (Amber/Oranye)
+                for (let g = 0; g < 3; g++) {
+                    const gearGroup = new THREE.Group();
+                    const yPos = (g - 1) * 1.05;
+                    gearGroup.position.set((g % 2 === 0 ? -0.35 : 0.35), yPos, 0);
+
+                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.22, 24), coreMat);
+                    gearGroup.add(wheel);
+
+                    // Gigi-gigi Roda
+                    for (let t = 0; t < 10; t++) {
+                        const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.25), wireMat);
+                        const a = (t / 10) * Math.PI * 2;
+                        tooth.position.set(Math.cos(a) * 0.82, 0, Math.sin(a) * 0.82);
+                        tooth.rotation.y = -a;
+                        gearGroup.add(tooth);
+                    }
+                    group.add(gearGroup);
+                    rotatingParts.push({ mesh: gearGroup, speedX: 0, speedY: (g % 2 === 0 ? 0.03 : -0.03), speedZ: 0 });
+                }
+
+                // Pipa-pipa Soket TCP Vertikal
+                for (let p = 0; p < 4; p++) {
+                    const a = (p * Math.PI) / 2;
+                    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.1, 12), wireMat);
+                    pipe.position.set(Math.cos(a) * 1.3, 0, Math.sin(a) * 1.3);
+                    group.add(pipe);
+                }
+
+            } else if (type === 'sms') {
+                // Mesin 3: Menara Pemancar Gelombang Radio & Modul GSM (Ungu)
+                const tower = new THREE.Mesh(new THREE.ConeGeometry(0.7, 2.8, 6), wireMat);
+                group.add(tower);
+
+                const emitter = new THREE.Mesh(new THREE.SphereGeometry(0.35, 20, 20), coreMat);
+                emitter.position.y = 1.35;
+                group.add(emitter);
+                rotatingParts.push({ mesh: emitter, speedX: 0.03, speedY: 0.03, speedZ: 0 });
+
+                // Gelombang Sinyal Mengembang
+                for (let w = 0; w < 4; w++) {
+                    const wave = new THREE.Mesh(new THREE.TorusGeometry(0.5 + w * 0.3, 0.035, 12, 36), coreMat);
+                    wave.rotation.x = Math.PI / 2;
+                    wave.position.y = 1.2 - w * 0.65;
+                    group.add(wave);
+                    rotatingParts.push({ mesh: wave, speedX: 0, speedY: 0, speedZ: 0.025 * (w + 1) });
+                }
+            }
+
+            return group;
+        }
+
+        // Pasang mesin awal (WhatsApp)
+        activeEngineGroup = buildInternalEngine('whatsapp');
+        capsuleGroup.add(activeEngineGroup);
+
+        // ==========================================
+        // 7. PARTIKEL PULSA ENERGI SAAT .send() DIPANGGIL
+        // ==========================================
+        const pulseSphereGeo = new THREE.SphereGeometry(0.24, 16, 16);
+        const inputPulseMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+        const inputPulse = new THREE.Mesh(pulseSphereGeo, inputPulseMat);
+        inputPulse.visible = false;
+        scene.add(inputPulse);
+
+        const outputPulseMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        const outputPulse = new THREE.Mesh(pulseSphereGeo, outputPulseMat);
+        outputPulse.visible = false;
+        scene.add(outputPulse);
+
+        let pulseProgress = 0;
+
+        function triggerSendAction() {
+            if (isExecuting || isSwapping) return;
+            isExecuting = true;
+            pulseProgress = 0;
+            inputPulse.visible = true;
+            outputPulse.visible = false;
+
+            const engName = ENGINES_DATA[currentEngineKey].name;
+            playTone('E5', '16n');
+
+            // Sorot kotak kode klien untuk menunjukkan ia tidak berubah
+            const clientBox = document.getElementById('client-code-box');
+            clientBox.classList.add('border-cyan-400', 'bg-cyan-950/40');
+            setTimeout(() => clientBox.classList.remove('border-cyan-400', 'bg-cyan-950/40'), 1400);
+
+            if (currentMode === 'blackbox') {
+                updateStatus(
+                    `Mode Black-Box: Pemanggil mengeksekusi .send("Halo!"). Kerumitan ${engName} tersembunyi rapi!`,
+                    'bg-cyan-400'
+                );
+            } else {
+                updateStatus(
+                    `Mode X-Ray: Lihat bagaimana ${engName} memproses soket & enkripsi rumit di dalam kapsul!`,
+                    'bg-amber-400'
+                );
+            }
+        }
+
+        // ==========================================
+        // 8. FUNGSI INTERAKTIF UI (MODE, HOT-SWAP, KAMERA)
+        // ==========================================
+        function setAbstractionMode(mode) {
+            currentMode = mode;
+            const btnBlackbox = document.getElementById('btn-mode-blackbox');
+            const btnXray = document.getElementById('btn-mode-xray');
+
+            if (mode === 'blackbox') {
+                btnBlackbox.className = 'px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-cyan-500 text-slate-950 shadow-lg';
+                btnXray.className = 'px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:text-white';
+                updateStatus('Mode Black-Box Aktif: Detail implementasi disembunyikan (Enkapsulasi & Abstraksi).', 'bg-cyan-400');
+                playTone('C4', '16n');
+            } else {
+                btnXray.className = 'px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 bg-cyan-500 text-slate-950 shadow-lg';
+                btnBlackbox.className = 'px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 text-slate-300 hover:text-white';
+                updateStatus('Mode X-Ray Aktif: Mengintip mesin konkret di balik antarmuka abstrak!', 'bg-emerald-400');
+                playTone('G4', '16n');
+            }
+        }
+
+        function swapEngine(engineKey) {
+            if (engineKey === currentEngineKey || isSwapping) return;
+            isSwapping = true;
+            currentEngineKey = engineKey;
+
+            const data = ENGINES_DATA[engineKey];
+            playTone('A4', '16n');
+
+            // Update tombol UI
+            document.querySelectorAll('.eng-btn').forEach(btn => {
+                btn.className = 'eng-btn px-2.5 py-2 rounded-lg text-xs font-mono font-semibold transition text-slate-400 hover:text-white truncate';
+            });
+            const activeBtn = document.getElementById(`btn-eng-${engineKey}`);
+            activeBtn.className = `eng-btn px-2.5 py-2 rounded-lg text-xs font-mono font-semibold transition border truncate ${data.badgeClass}`;
+
+            // Update Panel Kode Python
+            document.getElementById('code-badge').textContent = data.name;
+            document.getElementById('code-badge').className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${data.badgeClass}`;
+            document.getElementById('concrete-code-box').className = `rounded-xl p-2.5 transition-colors duration-300 border ${data.boxClass}`;
+            document.getElementById('concrete-code-header').innerHTML = `
+                <span class="${data.headerColor}">2. Detail Mesin Internal (${data.name})</span>
+                <span class="${data.headerColor}">Implementasi</span>
+            `;
+            document.getElementById('concrete-code-content').innerHTML = data.code;
+
+            // Animasi 3D: Mesin lama meluncur keluar ke kiri, mesin baru masuk dari bawah/kanan
+            let slideProgress = 0;
+            const oldEngine = activeEngineGroup;
+
+            const swapInterval = setInterval(() => {
+                slideProgress += 0.08;
+                if (slideProgress <= 1) {
+                    oldEngine.position.x = -slideProgress * 5.5;
+                    oldEngine.scale.setScalar(1 - slideProgress * 0.6);
+                } else {
+                    clearInterval(swapInterval);
+                    capsuleGroup.remove(oldEngine);
+
+                    // Buat mesin baru
+                    activeEngineGroup = buildInternalEngine(engineKey);
+                    activeEngineGroup.position.x = 5.5;
+                    activeEngineGroup.scale.setScalar(0.4);
+                    capsuleGroup.add(activeEngineGroup);
+                    engineInternalLight.color.setHex(data.colorHex);
+
+                    let enterProgress = 0;
+                    const enterInterval = setInterval(() => {
+                        enterProgress += 0.08;
+                        if (enterProgress <= 1) {
+                            const ease = 1 - Math.pow(1 - enterProgress, 3);
+                            activeEngineGroup.position.x = 5.5 * (1 - ease);
+                            activeEngineGroup.scale.setScalar(0.4 + 0.6 * ease);
+                        } else {
+                            activeEngineGroup.position.x = 0;
+                            activeEngineGroup.scale.setScalar(1);
+                            isSwapping = false;
+                            clearInterval(enterInterval);
+                            playTone('E5', '16n');
+                            updateStatus(
+                                `Mesin diganti ke ${data.name}! Perhatikan kode klien .send() tetap sama persis.`,
+                                'bg-cyan-400'
+                            );
+                        }
+                    }, 16);
+                }
+            }, 16);
+        }
+
+        // Preset Kamera Halus
+        let targetCamPos = null;
+        let targetLookAt = new THREE.Vector3(0, 0, 0);
+
+        function setCameraPreset(preset) {
+            if (preset === 'front') {
+                targetCamPos = new THREE.Vector3(0, 1.8, 9.5);
+                targetLookAt.set(0, 0, 0);
+            } else if (preset === 'top') {
+                targetCamPos = new THREE.Vector3(0, 7.5, 4.2);
+                targetLookAt.set(0, 1.8, 0);
+            } else if (preset === 'inside') {
+                if (currentMode === 'blackbox') setAbstractionMode('xray');
+                targetCamPos = new THREE.Vector3(2.8, 1.2, 4.8);
+                targetLookAt.set(0, 0, 0);
+            }
+        }
+
+        function toggleCodePanel() {
+            const panel = document.getElementById('code-panel');
+            const toggleText = document.getElementById('code-toggle-text');
+            codePanelVisible = !codePanelVisible;
+            if (codePanelVisible) {
+                panel.style.opacity = '1';
+                panel.style.pointerEvents = 'auto';
+                panel.style.transform = 'translateX(0)';
+                if (toggleText) toggleText.textContent = 'Sembunyikan Kode Python';
+            } else {
+                panel.style.opacity = '0';
+                panel.style.pointerEvents = 'none';
+                panel.style.transform = 'translateX(30px)';
+                if (toggleText) toggleText.textContent = 'Tampilkan Kode Python';
+            }
+        }
+
+        function updateStatus(text, dotColorClass) {
+            document.getElementById('status-text').textContent = text;
+            document.getElementById('status-dot').className = `w-2.5 h-2.5 rounded-full shrink-0 ${dotColorClass}`;
+        }
+
+        // Inisialisasi konten kode awal
+        document.getElementById('concrete-code-content').innerHTML = ENGINES_DATA.whatsapp.code;
+
+        // ==========================================
+        // 9. ANIMATION LOOP & RESPONSIVE RESIZE
+        // ==========================================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+
+            // Transisi halus opacity cangkang kapsul (Black-Box vs X-Ray)
+            const targetOpacity = currentMode === 'blackbox' ? 0.94 : 0.16;
+            shellMat.opacity += (targetOpacity - shellMat.opacity) * 0.08;
+
+            // Efek melayang ringan pada kapsul utama
+            capsuleGroup.position.y = Math.sin(elapsed * 1.5) * 0.08;
+
+            // Rotasi komponen mesin di dalam kapsul
+            const speedMultiplier = isExecuting ? 4.5 : 1.0;
+            rotatingParts.forEach(part => {
+                part.mesh.rotation.x += part.speedX * speedMultiplier;
+                part.mesh.rotation.y += part.speedY * speedMultiplier;
+                part.mesh.rotation.z += part.speedZ * speedMultiplier;
+            });
+
+            // Denyut node data internal
+            dataNodes.forEach((node, idx) => {
+                const s = 1 + Math.sin(elapsed * 4 + idx) * (isExecuting ? 0.45 : 0.15);
+                node.scale.setScalar(s);
+            });
+
+            // Animasi pulsa pemanggilan .send("Halo!")
+            if (isExecuting) {
+                pulseProgress += 0.022;
+
+                if (pulseProgress < 0.35) {
+                    // Fase 1: Pulsa masuk dari atas ke tombol interface .send()
+                    const t = pulseProgress / 0.35;
+                    inputPulse.position.set(0, 4.5 - t * 2.35, 0);
+                    portBaseMat.emissiveIntensity = 0.6 + t * 1.8;
+                } else if (pulseProgress < 0.72) {
+                    // Fase 2: Diproses oleh mesin internal
+                    inputPulse.visible = false;
+                    portBaseMat.emissiveIntensity = 1.5;
+                    engineInternalLight.intensity = 3.0 + Math.sin(elapsed * 25) * 2.5;
+                    ringMat.emissiveIntensity = 1.4;
+                } else if (pulseProgress <= 1.0) {
+                    // Fase 3: Hasil bersih keluar dari port samping kanan
+                    const t = (pulseProgress - 0.72) / 0.28;
+                    outputPulse.visible = true;
+                    outputPulse.position.set(2.2 + t * 3.5, 0, 0);
+                    outputPulseMat.color.setHex(ENGINES_DATA[currentEngineKey].colorHex);
+                } else {
+                    // Selesai
+                    isExecuting = false;
+                    outputPulse.visible = false;
+                    portBaseMat.emissiveIntensity = 0.6;
+                    engineInternalLight.intensity = 3.0;
+                    ringMat.emissiveIntensity = 0.8;
+                    playTone('G5', '16n');
+                }
+            }
+
+            // Transisi Kamera Preset
+            if (targetCamPos) {
+                camera.position.lerp(targetCamPos, 0.07);
+                controls.target.lerp(targetLookAt, 0.07);
+                if (camera.position.distanceTo(targetCamPos) < 0.05) {
+                    targetCamPos = null;
+                }
+            }
+
+            starField.rotation.y += 0.0004;
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Responsive Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Mulai animasi saat halaman selesai dimuat
+        window.onload = function () {
+            // Sesuaikan visibilitas panel kode awal di layar kecil
+            if (window.innerWidth < 1024) {
+                toggleCodePanel();
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>

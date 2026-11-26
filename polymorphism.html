@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisasi 3D: Polimorfisme & Duck Typing dalam Python OOP</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tone.js untuk efek suara sintetik tanpa file eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0a0e17;
+            user-select: none;
+        }
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        #labels-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.65);
+        }
+        .glass-panel {
+            background: rgba(10, 14, 23, 0.84);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.85);
+        }
+        .code-line {
+            display: block;
+            padding: 1px 8px;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+            transition: all 0.22s ease;
+        }
+        .code-line.active-cyan {
+            background: rgba(6, 182, 212, 0.24);
+            border-left-color: #22d3ee;
+        }
+        .code-line.active-emerald {
+            background: rgba(16, 185, 129, 0.24);
+            border-left-color: #34d399;
+        }
+        .code-line.active-amber {
+            background: rgba(245, 158, 11, 0.24);
+            border-left-color: #fbbf24;
+        }
+        .code-line.active-purple {
+            background: rgba(217, 70, 239, 0.26);
+            border-left-color: #e879f9;
+        }
+        .floating-3d-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased">
+    
+    <!-- Container Utama WebGL 3D -->
+    <div id="canvas-container"></div>
+
+    <!-- Layer Label 3D Proyeksi Layar -->
+    <div id="labels-layer">
+        <!-- Label Dispatcher Universal -->
+        <div id="label-dispatcher" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3.5 py-2 border border-amber-400/60 shadow-lg text-center min-w-[235px]">
+                <div class="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">Universal Dispatcher</div>
+                <div class="text-xs sm:text-sm font-mono font-bold text-white">for item in daftar_objek:</div>
+                <div class="mt-0.5 text-[11px] font-mono text-cyan-300">item.hitung_luas()</div>
+            </div>
+        </div>
+
+        <!-- Label 1: Lingkaran(Bentuk) -->
+        <div id="label-lingkaran" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-1.5 border border-cyan-400/60 shadow-lg text-center min-w-[180px]">
+                <div class="text-[9px] font-mono uppercase tracking-wider text-cyan-400 font-bold">Subclass 1</div>
+                <div class="text-xs font-mono font-bold text-white">Lingkaran(Bentuk)</div>
+                <div id="lbl-lingkaran-val" class="text-[10px] font-mono text-cyan-200 mt-0.5">r = 7 → Luas: 153.94</div>
+            </div>
+        </div>
+
+        <!-- Label 2: Persegi(Bentuk) -->
+        <div id="label-persegi" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-1.5 border border-emerald-400/60 shadow-lg text-center min-w-[180px]">
+                <div class="text-[9px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Subclass 2</div>
+                <div class="text-xs font-mono font-bold text-white">Persegi(Bentuk)</div>
+                <div id="lbl-persegi-val" class="text-[10px] font-mono text-emerald-200 mt-0.5">sisi = 8 → Luas: 64.00</div>
+            </div>
+        </div>
+
+        <!-- Label 3: Segitiga(Bentuk) -->
+        <div id="label-segitiga" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-1.5 border border-amber-400/60 shadow-lg text-center min-w-[180px]">
+                <div class="text-[9px] font-mono uppercase tracking-wider text-amber-400 font-bold">Subclass 3</div>
+                <div class="text-xs font-mono font-bold text-white">Segitiga(Bentuk)</div>
+                <div id="lbl-segitiga-val" class="text-[10px] font-mono text-amber-200 mt-0.5">a=10, t=6 → Luas: 30.00</div>
+            </div>
+        </div>
+
+        <!-- Label 4: RobotGambar (Duck Typing) -->
+        <div id="label-robot" class="floating-3d-label">
+            <div class="glass-panel rounded-xl px-3 py-1.5 border border-fuchsia-400/60 shadow-lg text-center min-w-[195px]">
+                <div class="text-[9px] font-mono uppercase tracking-wider text-fuchsia-400 font-bold">Duck Typing (Tanpa Bentuk)</div>
+                <div class="text-xs font-mono font-bold text-white">class RobotGambar</div>
+                <div id="lbl-robot-val" class="text-[10px] font-mono text-fuchsia-200 mt-0.5">Kanvas 12×5 → Luas: 60.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Judul & Status Penjelasan (Kiri Atas) -->
+    <header class="fixed top-4 left-4 right-4 lg:right-auto z-20 pointer-events-none flex flex-col gap-2.5 max-w-xl">
+        <div class="glass-panel rounded-2xl p-4 pointer-events-auto">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span class="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">Python OOP • Konsep Polimorfisme</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button id="btn-toggle-labels" onclick="toggle3DLabels()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 transition text-xs font-mono border border-cyan-500/40">
+                        🏷️ Label: On
+                    </button>
+                    <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto;">
+                    <a href="index.html" style="background: rgba(15,23,42,0.85); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; transition: 0.2s;">
+                        ← Portal
+                    </a>
+                    <button id="btn-sound" title="Aktifkan/Matikan Efek Suara" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition text-xs font-mono flex items-center gap-1 border border-slate-700">
+                        <span id="sound-icon">🔇</span> <span class="hidden sm:inline" id="sound-label">Audio</span>
+                    </button>
+                    </div>
+                </div>
+            </div>
+            <h1 class="text-lg sm:text-xl font-bold text-white mt-1.5 tracking-tight">
+                Satu Antarmuka, <span class="text-cyan-400">Banyak Bentuk Eksekusi</span>
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                Satu pemanggilan <code class="text-cyan-300 font-mono">objek.hitung_luas()</code> menghasilkan perilaku berbeda sesuai tipe objeknya—baik lewat <em>Method Overriding</em> maupun <strong>Duck Typing</strong> khas Python.
+            </p>
+        </div>
+
+        <!-- Banner Penjelasan Real-Time -->
+        <div id="status-banner" class="glass-panel rounded-xl px-4 py-3 border-l-4 border-l-cyan-400 pointer-events-auto transition-all duration-300">
+            <div class="flex items-start gap-2.5">
+                <span id="status-icon" class="text-base mt-0.5">⚡</span>
+                <div class="flex-1">
+                    <div id="status-title" class="text-xs font-mono font-bold uppercase tracking-wide text-cyan-300">
+                        Reaktor Polimorfik Siap Dijalankan
+                    </div>
+                    <p id="status-desc" class="text-xs sm:text-sm text-slate-200 mt-0.5 leading-snug">
+                        Klik skenario di bawah untuk melihat bagaimana satu sinyal identik diolah menjadi output geometris yang berbeda-beda.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Preset Kamera & Toggle Kode (Kanan Atas) -->
+    <div class="fixed top-4 right-4 z-20 flex items-center gap-1.5 flex-wrap justify-end">
+        <div class="glass-panel rounded-2xl p-1.5 hidden xl:flex items-center gap-1">
+            <button onclick="setCameraPreset('overview')" id="cam-overview" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition bg-cyan-500 text-slate-950 shadow">
+                🌐 Overview
+            </button>
+            <button onclick="setCameraPreset('dispatcher')" id="cam-dispatcher" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white">
+                📡 Dispatcher
+            </button>
+            <button onclick="setCameraPreset('duck')" id="cam-duck" class="cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white">
+                🦆 Duck Typing
+            </button>
+        </div>
+        <button onclick="resetAllSimulation()" title="Reset Animasi & Kamera" class="glass-panel rounded-xl px-3 py-2 text-xs font-mono text-slate-300 hover:text-white hover:bg-slate-800/90 transition border border-slate-700">
+            🔄 Reset
+        </button>
+        <button id="btn-toggle-code" onclick="toggleCodePanel()" class="glass-panel rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 hover:bg-slate-800/90 transition border border-cyan-500/30">
+            { } <span class="hidden sm:inline" id="code-toggle-label">Sembunyikan Kode</span>
+        </button>
+    </div>
+
+    <!-- Panel Kode Python & Live Console Output (Kanan) -->
+    <aside id="code-panel" class="fixed top-20 right-4 bottom-36 w-[92vw] sm:w-[445px] lg:w-[485px] z-20 glass-panel rounded-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <!-- Header Editor -->
+        <div class="px-3.5 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-mono text-slate-300 ml-1">polimorfisme_bentuk.py</span>
+            </div>
+            <span id="code-mode-badge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                4 Objek Aktif
+            </span>
+        </div>
+
+        <!-- Isi Kode Python Sinkronisasi Real-Time -->
+        <div id="code-scroll-container" class="p-3 overflow-y-auto flex-1 font-mono text-[11px] sm:text-xs leading-relaxed bg-[#070a12]/95">
+<pre class="text-slate-200"><span id="line-1" class="code-line"><span class="text-purple-400">import</span> math</span>
+<span class="code-line"></span>
+<span id="line-2" class="code-line"><span class="text-purple-400">class</span> <span class="text-slate-100 font-bold">Bentuk</span>:  <span class="text-slate-500"># Kontrak dasar</span></span>
+<span id="line-3" class="code-line">    <span class="text-purple-400">def</span> <span class="text-cyan-300">hitung_luas</span>(self):</span>
+<span id="line-4" class="code-line">        <span class="text-purple-400">raise</span> NotImplementedError(<span class="text-amber-200">"Wajib di-override!"</span>)</span>
+<span class="code-line"></span>
+<span id="line-5" class="code-line"><span class="text-purple-400">class</span> <span class="text-cyan-300 font-bold">Lingkaran</span>(Bentuk):</span>
+<span id="line-6" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, r): self.r = r</span>
+<span id="line-7" class="code-line">    <span class="text-purple-400">def</span> <span class="text-cyan-300 font-bold">hitung_luas</span>(self): <span class="text-purple-400">return</span> math.pi * self.r ** <span class="text-rose-300">2</span></span>
+<span class="code-line"></span>
+<span id="line-8" class="code-line"><span class="text-purple-400">class</span> <span class="text-emerald-300 font-bold">Persegi</span>(Bentuk):</span>
+<span id="line-9" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, sisi): self.sisi = sisi</span>
+<span id="line-10" class="code-line">    <span class="text-purple-400">def</span> <span class="text-emerald-300 font-bold">hitung_luas</span>(self): <span class="text-purple-400">return</span> self.sisi ** <span class="text-rose-300">2</span></span>
+<span class="code-line"></span>
+<span id="line-11" class="code-line"><span class="text-purple-400">class</span> <span class="text-amber-300 font-bold">Segitiga</span>(Bentuk):</span>
+<span id="line-12" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, a, t): self.a, self.t = a, t</span>
+<span id="line-13" class="code-line">    <span class="text-purple-400">def</span> <span class="text-amber-300 font-bold">hitung_luas</span>(self): <span class="text-purple-400">return</span> <span class="text-rose-300">0.5</span> * self.a * self.t</span>
+<span class="code-line"></span>
+<span id="line-14" class="code-line"><span class="text-purple-400">class</span> <span class="text-fuchsia-300 font-bold">RobotGambar</span>:  <span class="text-slate-400"># TIDAK mewarisi Bentuk (Duck Typing)</span></span>
+<span id="line-15" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, p, l): self.p, self.l = p, l</span>
+<span id="line-16" class="code-line">    <span class="text-purple-400">def</span> <span class="text-fuchsia-300 font-bold">hitung_luas</span>(self): <span class="text-purple-400">return</span> self.p * self.l</span>
+<span class="code-line"></span>
+<span id="line-17" class="code-line"><span class="text-slate-500"># --- Fungsi Polimorfik Universal ---</span></span>
+<span id="line-18" class="code-line"><span class="text-purple-400">def</span> <span class="text-amber-300 font-bold">cetak_luas</span>(daftar_objek):</span>
+<span id="line-19" class="code-line">    <span class="text-purple-400">for</span> item <span class="text-purple-400">in</span> daftar_objek:</span>
+<span id="line-20" class="code-line">        <span class="text-slate-400"># Satu panggilan identik untuk semua tipe objek!</span></span>
+<span id="line-21" class="code-line">        print(<span class="text-emerald-300">f"{type(item).__name__}: {item.hitung_luas():.2f}"</span>)</span>
+<span class="code-line"></span>
+<span id="line-22" class="code-line"><span id="dynamic-list-line">daftar = [Lingkaran(<span class="text-rose-300">7</span>), Persegi(<span class="text-rose-300">8</span>), Segitiga(<span class="text-rose-300">10</span>, <span class="text-rose-300">6</span>), RobotGambar(<span class="text-rose-300">12</span>, <span class="text-rose-300">5</span>)]</span></span>
+<span id="line-23" class="code-line"><span id="dynamic-call-line">cetak_luas(daftar)</span></span></pre>
+        </div>
+
+        <!-- Console Output Terminal Interaktif -->
+        <div class="h-36 bg-slate-950 border-t border-slate-800 flex flex-col">
+            <div class="px-3 py-1.5 bg-slate-900/95 border-b border-slate-800/80 flex items-center justify-between">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Console Output Python
+                </span>
+                <button onclick="clearTerminal()" class="text-[10px] font-mono text-slate-400 hover:text-slate-200">
+                    Bersihkan
+                </button>
+            </div>
+            <div id="terminal-output" class="p-3 font-mono text-[11px] overflow-y-auto flex-1 space-y-1 text-slate-300">
+                <div class="text-slate-500">&gt;&gt;&gt; # Siap mengeksekusi cetak_luas(daftar)</div>
+                <div class="text-cyan-300">Semua objek merespons pesan .hitung_luas() sesuai kelasnya masing-masing.</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Dock Kontrol Skenario Demo Perkuliahan (Bawah) -->
+    <footer class="fixed bottom-4 left-4 right-4 z-20 flex flex-col items-center pointer-events-none">
+        <div class="glass-panel rounded-2xl p-3 pointer-events-auto w-full max-w-6xl">
+            <div class="flex items-center justify-between px-1 mb-2">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    Skenario Pembelajaran Polimorfisme (Klik untuk Memancarkan Sinyal 3D)
+                </span>
+                <span id="state-badge" class="text-[11px] font-mono font-semibold text-cyan-300 bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+                    Antarmuka Tunggal: .hitung_luas()
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <!-- Skenario 1: Loop Polimorfik -->
+                <button onclick="runScenarioPolymorphicLoop()" class="text-left p-2.5 rounded-xl bg-cyan-950/45 hover:bg-cyan-900/65 border border-cyan-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-cyan-300">📡 1. Eksekusi Loop Polimorfik</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-cyan-200/90 mt-1 block truncate">
+                        for item in daftar: item.hitung_luas()
+                    </code>
+                </button>
+
+                <!-- Skenario 2: Method Overriding -->
+                <button onclick="runScenarioMethodOverriding()" class="text-left p-2.5 rounded-xl bg-emerald-950/45 hover:bg-emerald-900/65 border border-emerald-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-emerald-300">🧬 2. Method Overriding</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-emerald-200/90 mt-1 block truncate">
+                        Bentuk → Timpa Formula Tiap Subclass
+                    </code>
+                </button>
+
+                <!-- Skenario 3: Uji Duck Typing -->
+                <button onclick="runScenarioDuckTyping()" class="text-left p-2.5 rounded-xl bg-fuchsia-950/45 hover:bg-fuchsia-900/65 border border-fuchsia-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-fuchsia-300">🦆 3. Uji Duck Typing</span>
+                    </div>
+                    <code class="text-[10px] font-mono text-fuchsia-200/90 mt-1 block truncate">
+                        RobotGambar tanpa warisi Bentuk
+                    </code>
+                </button>
+
+                <!-- Skenario 4: Tukar Parameter & Toggle Duck Object -->
+                <div class="p-2 rounded-xl bg-slate-900/85 border border-slate-700/80 flex flex-col justify-between gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-amber-300">🎛️ 4. Modifikasi Objek</span>
+                        <span id="preset-dim-badge" class="text-[9px] font-mono text-slate-400">Set A</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button onclick="cycleDimensions()" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-semibold transition active:scale-95">
+                            Ubah Ukuran
+                        </button>
+                        <button id="btn-toggle-robot" onclick="toggleRobotInList()" class="px-2 py-1 rounded-lg bg-fuchsia-500/25 hover:bg-fuchsia-500/35 text-fuchsia-300 border border-fuchsia-500/40 text-[10px] font-mono font-semibold transition active:scale-95">
+                            Robot: Masuk
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. DATA PARAMETER & STATE SIMULASI
+        // ==========================================
+        const PARAM_PRESETS = [
+            { label: 'Set A', r: 7, sisi: 8, a: 10, t: 6, p: 12, l: 5 },
+            { label: 'Set B', r: 10, sisi: 12, a: 14, t: 9, p: 15, l: 8 },
+            { label: 'Set C', r: 5, sisi: 6, a: 8, t: 5, p: 9, l: 4 }
+        ];
+
+        let presetIdx = 0;
+        let includeRobot = true;
+        let isAnimating = false;
+        let show3DLabels = true;
+        let codePanelVisible = true;
+        let soundEnabled = false;
+        let synth = null;
+
+        function getMetrics() {
+            const p = PARAM_PRESETS[presetIdx];
+            return {
+                ...p,
+                luasLingkaran: (Math.PI * p.r * p.r).toFixed(2),
+                luasPersegi: (p.sisi * p.sisi).toFixed(2),
+                luasSegitiga: (0.5 * p.a * p.t).toFixed(2),
+                luasRobot: (p.p * p.l).toFixed(2)
+            };
+        }
+
+        // ==========================================
+        // 2. AUDIO ENGINE SINTETIK (TONE.JS)
+        // ==========================================
+        document.getElementById('btn-sound').addEventListener('click', async () => {
+            if (!soundEnabled) {
+                await Tone.start();
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -10;
+                soundEnabled = true;
+                document.getElementById('sound-icon').textContent = '🔊';
+                document.getElementById('sound-label').textContent = 'Audio On';
+                playNotes('C5', '16n');
+            } else {
+                soundEnabled = false;
+                document.getElementById('sound-icon').textContent = '🔇';
+                document.getElementById('sound-label').textContent = 'Audio';
+            }
+        });
+
+        function playNotes(notes, duration = '16n') {
+            if (soundEnabled && synth) {
+                try {
+                    synth.triggerAttackRelease(notes, duration);
+                } catch (e) {}
+            }
+        }
+
+        // ==========================================
+        // 3. INISIALISASI SCENE 3D THREE.JS
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0e17, 0.023);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(-1.3, 2.2, 14.2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.25;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.minDistance = 5;
+        controls.maxDistance = 24;
+        controls.target.set(-1.1, 0.2, 0);
+
+        // Pencahayaan Studio Neon
+        const ambientLight = new THREE.AmbientLight(0x1e293b, 2.2);
+        scene.add(ambientLight);
+
+        const topLight = new THREE.PointLight(0xfbbf24, 3.0, 14);
+        topLight.position.set(-1.2, 3.8, 1);
+        scene.add(topLight);
+
+        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.4);
+        dirLight.position.set(5, 8, 6);
+        scene.add(dirLight);
+
+        // Lantai Grid Futuristik
+        const gridHelper = new THREE.GridHelper(38, 38, 0x0e7490, 0x0f172a);
+        gridHelper.position.y = -3.8;
+        scene.add(gridHelper);
+
+        // Partikel Bintang Latar
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(360 * 3);
+        for (let i = 0; i < starPos.length; i++) {
+            starPos[i] = (Math.random() - 0.5) * 54;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.08, transparent: true, opacity: 0.45 });
+        const starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+
+        // ==========================================
+        // 4. KOORDINAT & OBJEK 3D: DISPATCHER + 4 REAKTOR
+        // ==========================================
+        // Digeser ke kiri agar sejajar rapi di sebelah kiri panel kode
+        const POS_DISPATCHER = new THREE.Vector3(-1.3, 3.1, 0);
+        const POS_LINGKARAN  = new THREE.Vector3(-5.0, -1.5, 1.1);
+        const POS_PERSEGI    = new THREE.Vector3(-2.5, -1.6, 1.9);
+        const POS_SEGITIGA   = new THREE.Vector3(0.0, -1.6, 1.9);
+        const POS_ROBOT      = new THREE.Vector3(2.6, -1.3, 0.8);
+
+        // --- A. Universal Dispatcher Ring (Atas Tengah) ---
+        const dispatcherGroup = new THREE.Group();
+        dispatcherGroup.position.copy(POS_DISPATCHER);
+        scene.add(dispatcherGroup);
+
+        const dispCoreMat = new THREE.MeshStandardMaterial({
+            color: 0xfbbf24,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.9,
+            metalness: 0.5,
+            roughness: 0.2
+        });
+        const dispCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.75, 1), dispCoreMat);
+        dispatcherGroup.add(dispCore);
+
+        const dispRingOuter = new THREE.Mesh(
+            new THREE.TorusGeometry(1.45, 0.07, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+        );
+        dispRingOuter.rotation.x = Math.PI / 2.2;
+        dispatcherGroup.add(dispRingOuter);
+
+        const dispRingInner = new THREE.Mesh(
+            new THREE.TorusGeometry(1.12, 0.05, 16, 48),
+            new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+        );
+        dispRingInner.rotation.x = Math.PI / 2.2;
+        dispatcherGroup.add(dispRingInner);
+
+        // --- Helper Pembuat Reaktor & Hologram Output ---
+        function createReactorNode(pos, colorHex, coreGeo, holoGeo, isDuck = false) {
+            const group = new THREE.Group();
+            group.position.copy(pos);
+            scene.add(group);
+
+            // Base Pedestal
+            const baseMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                metalness: 0.8,
+                roughness: 0.25
+            });
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.1, 0.35, 24), baseMat);
+            base.position.y = -0.85;
+            group.add(base);
+
+            // Cincin Kontrak Interface (.hitung_luas())
+            const ringMat = new THREE.MeshBasicMaterial({ color: colorHex });
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(1.02, 0.045, 12, 48), ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = -0.66;
+            group.add(ring);
+
+            // Inti Geometris Reaktor
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 0.65,
+                metalness: 0.4,
+                roughness: 0.2
+            });
+            const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+            group.add(coreMesh);
+
+            // Proyeksi Hologram Output (Muncul di atas reaktor saat dieksekusi)
+            const holoMat = new THREE.MeshBasicMaterial({
+                color: colorHex,
+                wireframe: true,
+                transparent: true,
+                opacity: 0
+            });
+            const holoMesh = new THREE.Mesh(holoGeo, holoMat);
+            holoMesh.position.y = 1.45;
+            holoMesh.scale.setScalar(0.1);
+            group.add(holoMesh);
+
+            // Sayap Drone Khusus untuk RobotGambar (menegaskan bentuknya berbeda / bukan Bentuk)
+            if (isDuck) {
+                const wingGeo = new THREE.BoxGeometry(2.3, 0.12, 0.35);
+                const wing = new THREE.Mesh(wingGeo, baseMat);
+                wing.position.y = 0.2;
+                group.add(wing);
+            }
+
+            return { group, coreMesh, coreMat, ring, holoMesh, holoMat };
+        }
+
+        const nodeLingkaran = createReactorNode(
+            POS_LINGKARAN,
+            0x22d3ee,
+            new THREE.TorusGeometry(0.55, 0.22, 16, 36),
+            new THREE.TorusGeometry(0.68, 0.08, 12, 36)
+        );
+
+        const nodePersegi = createReactorNode(
+            POS_PERSEGI,
+            0x10b981,
+            new THREE.BoxGeometry(0.95, 0.95, 0.95),
+            new THREE.BoxGeometry(1.05, 1.05, 1.05)
+        );
+
+        const nodeSegitiga = createReactorNode(
+            POS_SEGITIGA,
+            0xf59e0b,
+            new THREE.ConeGeometry(0.75, 1.15, 3),
+            new THREE.ConeGeometry(0.85, 1.25, 3)
+        );
+
+        const nodeRobot = createReactorNode(
+            POS_ROBOT,
+            0xe879f9,
+            new THREE.DodecahedronGeometry(0.68, 0),
+            new THREE.BoxGeometry(1.3, 0.75, 0.12),
+            true
+        );
+
+        // ==========================================
+        // 5. KONDUIT SINYAL & PROYEKTIL ENERGI
+        // ==========================================
+        function createConduit(startPos, endPos, isDashedStyle = false) {
+            const mid = new THREE.Vector3(
+                (startPos.x + endPos.x) * 0.5,
+                (startPos.y + endPos.y) * 0.5 + 0.6,
+                (startPos.z + endPos.z) * 0.5 + 0.4
+            );
+            const curve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(startPos.x, startPos.y - 0.6, startPos.z),
+                mid,
+                new THREE.Vector3(endPos.x, endPos.y + 0.6, endPos.z)
+            ]);
+            const mat = new THREE.MeshBasicMaterial({
+                color: isDashedStyle ? 0xe879f9 : 0x38bdf8,
+                transparent: true,
+                opacity: isDashedStyle ? 0.25 : 0.35
+            });
+            const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.045, 10, false), mat);
+            scene.add(tube);
+
+            const beam = new THREE.Mesh(
+                new THREE.SphereGeometry(0.22, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+            );
+            beam.visible = false;
+            scene.add(beam);
+
+            return { curve, tube, mat, beam };
+        }
+
+        const conduitLingkaran = createConduit(POS_DISPATCHER, POS_LINGKARAN, false);
+        const conduitPersegi   = createConduit(POS_DISPATCHER, POS_PERSEGI, false);
+        const conduitSegitiga  = createConduit(POS_DISPATCHER, POS_SEGITIGA, false);
+        const conduitRobot     = createConduit(POS_DISPATCHER, POS_ROBOT, true);
+
+        // ==========================================
+        // 6. LOGIKA SKENARIO & SINKRONISASI KODE
+        // ==========================================
+        let activeAnim = null;
+        let holoTimer = 0;
+
+        function highlightCode(lines, colorClass, callHtml) {
+            document.querySelectorAll('.code-line').forEach(el => {
+                el.classList.remove('active-cyan', 'active-emerald', 'active-amber', 'active-purple');
+            });
+            lines.forEach(n => {
+                const el = document.getElementById(`line-${n}`);
+                if (el) el.classList.add(colorClass);
+            });
+            if (callHtml) {
+                document.getElementById('dynamic-call-line').innerHTML = callHtml;
+            }
+        }
+
+        function appendConsole(cmd, lines, colorClass = 'text-emerald-400') {
+            const term = document.getElementById('terminal-output');
+            const c = document.createElement('div');
+            c.className = 'text-slate-300 mt-1';
+            c.textContent = `>>> ${cmd}`;
+            term.appendChild(c);
+
+            lines.forEach(line => {
+                const o = document.createElement('div');
+                o.className = colorClass;
+                o.textContent = line;
+                term.appendChild(o);
+            });
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal-output').innerHTML =
+                `<div class="text-slate-500">&gt;&gt;&gt; # Terminal dibersihkan. Siap menerima perintah baru.</div>`;
+        }
+
+        function setBanner(icon, title, desc, borderClass, titleColorClass, badgeText) {
+            const banner = document.getElementById('status-banner');
+            banner.className = `glass-panel rounded-xl px-4 py-3 border-l-4 pointer-events-auto transition-all duration-300 ${borderClass}`;
+            document.getElementById('status-icon').textContent = icon;
+            const tEl = document.getElementById('status-title');
+            tEl.textContent = title;
+            tEl.className = `text-xs font-mono font-bold uppercase tracking-wide ${titleColorClass}`;
+            document.getElementById('status-desc').textContent = desc;
+            if (badgeText) {
+                document.getElementById('state-badge').textContent = badgeText;
+            }
+        }
+
+        function resetHolograms() {
+            [nodeLingkaran, nodePersegi, nodeSegitiga, nodeRobot].forEach(n => {
+                n.holoMat.opacity = 0;
+                n.holoMesh.scale.setScalar(0.1);
+                n.coreMat.emissiveIntensity = 0.65;
+            });
+            [conduitLingkaran, conduitPersegi, conduitSegitiga, conduitRobot].forEach(c => {
+                c.beam.visible = false;
+                c.mat.opacity = 0.35;
+            });
+            if (!includeRobot) {
+                conduitRobot.mat.opacity = 0.06;
+            }
+        }
+
+        // --- SKENARIO 1: Loop Polimorfik ---
+        function runScenarioPolymorphicLoop() {
+            if (isAnimating) return;
+            isAnimating = true;
+            resetHolograms();
+
+            const activeTargets = [
+                { key: 'lingkaran', node: nodeLingkaran, conduit: conduitLingkaran, color: 0x22d3ee, line: 7 },
+                { key: 'persegi',   node: nodePersegi,   conduit: conduitPersegi,   color: 0x10b981, line: 10 },
+                { key: 'segitiga',  node: nodeSegitiga,  conduit: conduitSegitiga,  color: 0xf59e0b, line: 13 }
+            ];
+            if (includeRobot) {
+                activeTargets.push({ key: 'robot', node: nodeRobot, conduit: conduitRobot, color: 0xe879f9, line: 16 });
+            }
+
+            highlightCode(
+                [18, 19, 21, 22, 23],
+                'active-cyan',
+                `<span class="text-cyan-300 font-bold">cetak_luas(daftar)</span>  <span class="text-slate-400"># Sinyal identik item.hitung_luas()</span>`
+            );
+
+            playNotes(['C4', 'E4', 'G4'], '16n');
+            activeTargets.forEach(t => {
+                t.conduit.beam.visible = true;
+                t.conduit.beam.material.color.setHex(0x22d3ee); // Sinyal awal SAMA PERSIS (Cyan)
+                t.conduit.mat.opacity = 0.9;
+            });
+
+            activeAnim = {
+                type: 'poly_loop',
+                progress: 0,
+                targets: activeTargets
+            };
+        }
+
+        // --- SKENARIO 2: Method Overriding ---
+        function runScenarioMethodOverriding() {
+            if (isAnimating) return;
+            isAnimating = true;
+            resetHolograms();
+
+            highlightCode(
+                [2, 3, 4, 7, 10, 13],
+                'active-emerald',
+                `<span class="text-emerald-300 font-bold"># Tiap subclass menimpa method hitung_luas() milik Bentuk</span>`
+            );
+
+            playNotes(['D4', 'F#4', 'A4'], '16n');
+            const subTargets = [
+                { node: nodeLingkaran, conduit: conduitLingkaran, color: 0x22d3ee },
+                { node: nodePersegi,   conduit: conduitPersegi,   color: 0x10b981 },
+                { node: nodeSegitiga,  conduit: conduitSegitiga,  color: 0xf59e0b }
+            ];
+            subTargets.forEach(t => {
+                t.conduit.beam.visible = true;
+                t.conduit.beam.material.color.setHex(t.color);
+                t.conduit.mat.opacity = 0.9;
+            });
+
+            activeAnim = {
+                type: 'overriding',
+                progress: 0,
+                targets: subTargets
+            };
+        }
+
+        // --- SKENARIO 3: Uji Duck Typing ---
+        function runScenarioDuckTyping() {
+            if (isAnimating) return;
+            if (!includeRobot) {
+                toggleRobotInList();
+            }
+            isAnimating = true;
+            resetHolograms();
+
+            highlightCode(
+                [14, 15, 16, 19, 21],
+                'active-purple',
+                `<span class="text-fuchsia-300 font-bold">cetak_luas([RobotGambar(12, 5)])</span>  <span class="text-slate-400"># Lolos Duck Typing!</span>`
+            );
+
+            playNotes(['E4', 'G#4', 'B4'], '16n');
+            conduitRobot.beam.visible = true;
+            conduitRobot.beam.material.color.setHex(0xe879f9);
+            conduitRobot.mat.opacity = 0.95;
+
+            activeAnim = {
+                type: 'duck_typing',
+                progress: 0
+            };
+        }
+
+        // --- SKENARIO 4A: Ubah Ukuran Objek ---
+        function cycleDimensions() {
+            presetIdx = (presetIdx + 1) % PARAM_PRESETS.length;
+            const m = getMetrics();
+
+            document.getElementById('preset-dim-badge').textContent = m.label;
+            document.getElementById('lbl-lingkaran-val').textContent = `r = ${m.r} → Luas: ${m.luasLingkaran}`;
+            document.getElementById('lbl-persegi-val').textContent = `sisi = ${m.sisi} → Luas: ${m.luasPersegi}`;
+            document.getElementById('lbl-segitiga-val').textContent = `a=${m.a}, t=${m.t} → Luas: ${m.luasSegitiga}`;
+            document.getElementById('lbl-robot-val').textContent = `Kanvas ${m.p}×${m.l} → Luas: ${m.luasRobot}`;
+
+            // Skala reaktor 3D secara halus sesuai preset
+            const scaleFactor = presetIdx === 0 ? 1.0 : (presetIdx === 1 ? 1.18 : 0.86);
+            nodeLingkaran.coreMesh.scale.setScalar(scaleFactor);
+            nodePersegi.coreMesh.scale.setScalar(scaleFactor);
+            nodeSegitiga.coreMesh.scale.setScalar(scaleFactor);
+            nodeRobot.coreMesh.scale.setScalar(scaleFactor);
+
+            updateDaftarCodeLine();
+            playNotes('G5', '16n');
+            setBanner(
+                '🎛️',
+                `Parameter Objek Diperbarui (${m.label})`,
+                `Nilai atribut internal tiap instance berubah, namun fungsi cetak_luas(daftar) tetap bekerja tanpa diubah sedikit pun.`,
+                'border-l-amber-400',
+                'text-amber-300',
+                `Parameter Aktif: ${m.label}`
+            );
+        }
+
+        // --- SKENARIO 4B: Toggle RobotGambar Masuk/Keluar Daftar ---
+        function toggleRobotInList() {
+            includeRobot = !includeRobot;
+            const btn = document.getElementById('btn-toggle-robot');
+            const badge = document.getElementById('code-mode-badge');
+
+            if (includeRobot) {
+                btn.textContent = 'Robot: Masuk';
+                btn.className = 'px-2 py-1 rounded-lg bg-fuchsia-500/25 hover:bg-fuchsia-500/35 text-fuchsia-300 border border-fuchsia-500/40 text-[10px] font-mono font-semibold transition active:scale-95';
+                badge.textContent = '4 Objek Aktif';
+                nodeRobot.group.visible = true;
+                conduitRobot.tube.visible = true;
+                document.getElementById('label-robot').style.opacity = show3DLabels ? '1' : '0';
+            } else {
+                btn.textContent = 'Robot: Keluar';
+                btn.className = 'px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-600 text-[10px] font-mono font-semibold transition active:scale-95';
+                badge.textContent = '3 Objek Aktif';
+                nodeRobot.group.visible = false;
+                conduitRobot.tube.visible = false;
+                document.getElementById('label-robot').style.opacity = '0';
+            }
+            updateDaftarCodeLine();
+            playNotes('D5', '16n');
+        }
+
+        function updateDaftarCodeLine() {
+            const m = getMetrics();
+            const robotSnippet = includeRobot ? `, RobotGambar(<span class="text-rose-300">${m.p}</span>, <span class="text-rose-300">${m.l}</span>)` : '';
+            document.getElementById('dynamic-list-line').innerHTML =
+                `daftar = [Lingkaran(<span class="text-rose-300">${m.r}</span>), Persegi(<span class="text-rose-300">${m.sisi}</span>), Segitiga(<span class="text-rose-300">${m.a}</span>, <span class="text-rose-300">${m.t}</span>)${robotSnippet}]`;
+        }
+
+        // ==========================================
+        // 7. KONTROL KAMERA, LABEL, & PANEL KODE
+        // ==========================================
+        let targetCamPos = null;
+        let targetLookAt = new THREE.Vector3(-1.1, 0.2, 0);
+
+        function setCameraPreset(preset) {
+            document.querySelectorAll('.cam-btn').forEach(btn => {
+                btn.className = 'cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white';
+            });
+            const activeBtn = document.getElementById(`cam-${preset}`);
+            if (activeBtn) {
+                activeBtn.className = 'cam-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold transition bg-cyan-500 text-slate-950 shadow';
+            }
+
+            if (preset === 'overview') {
+                targetCamPos = new THREE.Vector3(-1.3, 2.2, 14.2);
+                targetLookAt.set(-1.1, 0.2, 0);
+            } else if (preset === 'dispatcher') {
+                targetCamPos = new THREE.Vector3(-1.3, 3.8, 6.8);
+                targetLookAt.copy(POS_DISPATCHER);
+            } else if (preset === 'duck') {
+                if (!includeRobot) toggleRobotInList();
+                targetCamPos = new THREE.Vector3(2.8, 0.2, 6.2);
+                targetLookAt.copy(POS_ROBOT);
+            }
+        }
+
+        function toggle3DLabels() {
+            show3DLabels = !show3DLabels;
+            document.getElementById('labels-layer').style.opacity = show3DLabels ? '1' : '0';
+            document.getElementById('btn-toggle-labels').textContent = show3DLabels ? '🏷️ Label: On' : '🏷️ Label: Off';
+        }
+
+        function toggleCodePanel() {
+            const panel = document.getElementById('code-panel');
+            const label = document.getElementById('code-toggle-label');
+            codePanelVisible = !codePanelVisible;
+            if (codePanelVisible) {
+                panel.style.opacity = '1';
+                panel.style.pointerEvents = 'auto';
+                panel.style.transform = 'translateX(0)';
+                if (label) label.textContent = 'Sembunyikan Kode';
+            } else {
+                panel.style.opacity = '0';
+                panel.style.pointerEvents = 'none';
+                panel.style.transform = 'translateX(30px)';
+                if (label) label.textContent = 'Tampilkan Kode';
+            }
+        }
+
+        function resetAllSimulation() {
+            activeAnim = null;
+            isAnimating = false;
+            holoTimer = 0;
+            resetHolograms();
+            highlightCode([], 'active-cyan', `cetak_luas(daftar)`);
+            setCameraPreset('overview');
+            setBanner(
+                '⚡',
+                'Reaktor Polimorfik Siap Dijalankan',
+                'Simulasi telah direset. Silakan pilih skenario pembelajaran di panel bawah.',
+                'border-l-cyan-400',
+                'text-cyan-300',
+                'Antarmuka Tunggal: .hitung_luas()'
+            );
+        }
+
+        // ==========================================
+        // 8. PROYEKSI LABEL HTML 3D KE LAYAR
+        // ==========================================
+        function updateScreenLabel(id, worldPos, offsetY = 0) {
+            const el = document.getElementById(id);
+            if (!el || !show3DLabels) return;
+            if (id === 'label-robot' && !includeRobot) {
+                el.style.display = 'none';
+                return;
+            }
+
+            const vec = worldPos.clone();
+            vec.y += offsetY;
+            vec.project(camera);
+
+            if (vec.z > 1) {
+                el.style.display = 'none';
+                return;
+            }
+            el.style.display = 'block';
+            const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(vec.y * 0.5) + 0.5) * window.innerHeight;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+        }
+
+        // ==========================================
+        // 9. ANIMATION LOOP UTAMA
+        // ==========================================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+
+            // Animasi idle Dispatcher & Reaktor
+            dispCore.rotation.y = elapsed * 0.8;
+            dispRingOuter.rotation.z = elapsed * 0.6;
+            dispRingInner.rotation.z = -elapsed * 0.9;
+            dispatcherGroup.position.y = POS_DISPATCHER.y + Math.sin(elapsed * 1.6) * 0.08;
+
+            nodeLingkaran.coreMesh.rotation.y = elapsed * 0.7;
+            nodePersegi.coreMesh.rotation.y = -elapsed * 0.6;
+            nodePersegi.coreMesh.rotation.x = Math.sin(elapsed * 0.8) * 0.25;
+            nodeSegitiga.coreMesh.rotation.y = elapsed * 0.75;
+            nodeRobot.coreMesh.rotation.y = -elapsed * 0.9;
+            nodeRobot.group.position.y = POS_ROBOT.y + Math.sin(elapsed * 2.2) * 0.1;
+
+            // Rotasi Hologram Output jika sedang aktif
+            if (holoTimer > 0) {
+                holoTimer -= 0.008;
+                [nodeLingkaran, nodePersegi, nodeSegitiga, nodeRobot].forEach(n => {
+                    if (n.holoMat.opacity > 0.01) {
+                        n.holoMesh.rotation.y = elapsed * 1.4;
+                        n.holoMesh.rotation.x = elapsed * 0.7;
+                    }
+                });
+            }
+
+            // Eksekusi Skenario Interaktif
+            if (activeAnim) {
+                activeAnim.progress += 0.02;
+                const p = activeAnim.progress;
+
+                if (activeAnim.type === 'poly_loop') {
+                    if (p <= 1.0) {
+                        // Sinyal identik meluncur serentak ke semua reaktor
+                        dispCoreMat.emissiveIntensity = 1.8;
+                        activeAnim.targets.forEach(t => {
+                            t.conduit.beam.position.copy(t.conduit.curve.getPointAt(p));
+                        });
+                    } else {
+                        // Setiap reaktor memproyeksikan hologram sesuai bentuk & rumusnya sendiri!
+                        dispCoreMat.emissiveIntensity = 0.9;
+                        const m = getMetrics();
+                        const linesToHighlight = [19, 21];
+
+                        activeAnim.targets.forEach(t => {
+                            t.conduit.beam.visible = false;
+                            t.conduit.mat.opacity = 0.4;
+                            t.node.coreMat.emissiveIntensity = 1.8;
+                            t.node.holoMat.opacity = 0.92;
+                            t.node.holoMesh.scale.setScalar(1.0);
+                            linesToHighlight.push(t.line);
+                        });
+
+                        holoTimer = 1.0;
+                        highlightCode(
+                            linesToHighlight,
+                            'active-cyan',
+                            `<span class="text-cyan-300 font-bold">cetak_luas(daftar)</span>  <span class="text-emerald-300"># Semua reaktor memancarkan hasil unik!</span>`
+                        );
+                        playNotes(['C5', 'E5', 'G5', 'B5'], '8n');
+
+                        const consoleOut = [
+                            `Lingkaran: ${m.luasLingkaran}   # math.pi * ${m.r}**2`,
+                            `Persegi: ${m.luasPersegi}      # ${m.sisi}**2`,
+                            `Segitiga: ${m.luasSegitiga}     # 0.5 * ${m.a} * ${m.t}`
+                        ];
+                        if (includeRobot) {
+                            consoleOut.push(`RobotGambar: ${m.luasRobot}  # ${m.p} * ${m.l} (Duck Typing!)`);
+                        }
+
+                        setBanner(
+                            '📡',
+                            'Polimorfisme Berhasil: 1 Perintah → 4 Perilaku Berbeda!',
+                            'Dispatcher mengirim panggilan identik item.hitung_luas(), tetapi tiap objek mengeksekusi formula geometrisnya masing-masing tanpa percabangan if/else.',
+                            'border-l-cyan-400',
+                            'text-cyan-300',
+                            'Output: 4 Bentuk Unik Terproyeksi'
+                        );
+                        appendConsole('cetak_luas(daftar)', consoleOut, 'text-cyan-300');
+
+                        activeAnim = null;
+                        isAnimating = false;
+                    }
+                } else if (activeAnim.type === 'overriding') {
+                    if (p <= 1.0) {
+                        activeAnim.targets.forEach(t => {
+                            t.conduit.beam.position.copy(t.conduit.curve.getPointAt(p));
+                        });
+                    } else {
+                        const m = getMetrics();
+                        activeAnim.targets.forEach(t => {
+                            t.conduit.beam.visible = false;
+                            t.conduit.mat.opacity = 0.4;
+                            t.node.coreMat.emissiveIntensity = 1.9;
+                            t.node.holoMat.opacity = 0.92;
+                            t.node.holoMesh.scale.setScalar(1.0);
+                        });
+                        holoTimer = 1.0;
+                        playNotes(['D5', 'F#5', 'A5'], '8n');
+
+                        setBanner(
+                            '🧬',
+                            'Method Overriding: Subclass Menimpa Kontrak Dasar Bentuk',
+                            'Kelas induk Bentuk hanya mendefinisikan antarmuka hitung_luas(). Lingkaran, Persegi, dan Segitiga menimpa (override) method tersebut dengan rumus spesifik.',
+                            'border-l-emerald-400',
+                            'text-emerald-300',
+                            'Status: 3 Subclass Overriding Aktif'
+                        );
+                        appendConsole(
+                            '[b.hitung_luas() for b in [Lingkaran(r), Persegi(sisi), Segitiga(a, t)]]',
+                            [`[${m.luasLingkaran}, ${m.luasPersegi}, ${m.luasSegitiga}]`],
+                            'text-emerald-300'
+                        );
+
+                        activeAnim = null;
+                        isAnimating = false;
+                    }
+                } else if (activeAnim.type === 'duck_typing') {
+                    if (p <= 1.0) {
+                        conduitRobot.beam.position.copy(conduitRobot.curve.getPointAt(p));
+                    } else {
+                        const m = getMetrics();
+                        conduitRobot.beam.visible = false;
+                        conduitRobot.mat.opacity = 0.45;
+                        nodeRobot.coreMat.emissiveIntensity = 2.1;
+                        nodeRobot.holoMat.opacity = 0.95;
+                        nodeRobot.holoMesh.scale.setScalar(1.05);
+                        holoTimer = 1.0;
+                        playNotes(['E5', 'G#5', 'B5'], '8n');
+
+                        setBanner(
+                            '🦆',
+                            'Duck Typing Python: Tidak Perlu Mewarisi Class Bentuk!',
+                            '"If it walks like a duck and quacks like a duck..." — RobotGambar bukan turunan Bentuk, tapi diterima cetak_luas() karena punya method .hitung_luas().',
+                            'border-l-fuchsia-400',
+                            'text-fuchsia-300',
+                            'Duck Typing: issubclass(RobotGambar, Bentuk) == False'
+                        );
+                        appendConsole(
+                            'isinstance(robot, Bentuk), cetak_luas([robot])',
+                            [`False  # Tidak mewarisi Bentuk`, `RobotGambar: ${m.luasRobot}  # Tetap berjalan mulus!`],
+                            'text-fuchsia-300'
+                        );
+
+                        activeAnim = null;
+                        isAnimating = false;
+                    }
+                }
+            }
+
+            // Transisi Kamera Halus
+            if (targetCamPos) {
+                camera.position.lerp(targetCamPos, 0.07);
+                controls.target.lerp(targetLookAt, 0.07);
+                if (camera.position.distanceTo(targetCamPos) < 0.05) {
+                    targetCamPos = null;
+                }
+            }
+
+            starField.rotation.y += 0.0003;
+            controls.update();
+
+            // Perbarui Posisi Label 3D ke Layar
+            updateScreenLabel('label-dispatcher', dispatcherGroup.position, 1.85);
+            updateScreenLabel('label-lingkaran', nodeLingkaran.group.position, -1.55);
+            updateScreenLabel('label-persegi', nodePersegi.group.position, -1.55);
+            updateScreenLabel('label-segitiga', nodeSegitiga.group.position, -1.55);
+            updateScreenLabel('label-robot', nodeRobot.group.position, -1.55);
+
+            renderer.render(scene, camera);
+        }
+
+        // Responsive Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = function () {
+            if (window.innerWidth < 1024) {
+                toggleCodePanel();
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>

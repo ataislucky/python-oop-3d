@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisasi 3D: Enkapsulasi dalam Python OOP</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tone.js untuk efek suara sintetik tanpa file eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0f19;
+            user-select: none;
+        }
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(245, 158, 11, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(245, 158, 11, 0.65);
+        }
+        .glass-panel {
+            background: rgba(11, 15, 25, 0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.8);
+        }
+        .code-line {
+            display: block;
+            padding: 1px 8px;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+            transition: all 0.25s ease;
+        }
+        .code-line.active-cyan {
+            background: rgba(6, 182, 212, 0.22);
+            border-left-color: #22d3ee;
+        }
+        .code-line.active-emerald {
+            background: rgba(16, 185, 129, 0.22);
+            border-left-color: #34d399;
+        }
+        .code-line.active-rose {
+            background: rgba(244, 63, 94, 0.25);
+            border-left-color: #fb7185;
+        }
+        .code-line.active-amber {
+            background: rgba(245, 158, 11, 0.25);
+            border-left-color: #fbbf24;
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased">
+    
+    <!-- Container Utama WebGL 3D -->
+    <div id="canvas-container"></div>
+
+    <!-- Header Judul & Status (Kiri Atas) -->
+    <header class="fixed top-4 left-4 right-4 md:right-auto z-20 pointer-events-none flex flex-col gap-2.5 max-w-xl">
+        <div class="glass-panel rounded-2xl p-4 pointer-events-auto">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span class="text-xs font-mono uppercase tracking-wider text-amber-400 font-semibold">Python OOP • Konsep Enkapsulasi</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="resetCamera()" title="Reset Posisi Kamera 3D" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition text-xs font-mono border border-slate-700">
+                        🎯 Reset Kamera
+                    </button>
+                    <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto;">
+                    <a href="index.html" style="background: rgba(15,23,42,0.85); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; transition: 0.2s;">
+                        ← Portal
+                    </a>
+                    <button id="btn-sound" title="Aktifkan/Matikan Efek Suara" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition text-xs font-mono flex items-center gap-1 border border-slate-700">
+                        <span id="sound-icon">🔇</span> <span class="hidden sm:inline" id="sound-label">Audio</span>
+                    </button>
+                    </div>
+                </div>
+            </div>
+            <h1 class="text-lg sm:text-xl font-bold text-white mt-1.5 tracking-tight">
+                Kubah Brankas Data: <span class="text-amber-400">Private Attribute</span> & <span class="text-cyan-400">@property</span>
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                Atribut privat <code class="text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded font-mono">self.__saldo</code> dikunci di dalam perisai enkapsulasi dan hanya boleh diakses melalui gerbang validasi <code class="text-cyan-300 font-mono">@property</code>.
+            </p>
+        </div>
+
+        <!-- Banner Penjelasan Real-Time -->
+        <div id="status-banner" class="glass-panel rounded-xl px-4 py-3 border-l-4 border-l-amber-400 pointer-events-auto transition-all duration-300">
+            <div class="flex items-start gap-2.5">
+                <span id="status-icon" class="text-base mt-0.5">🛡️</span>
+                <div class="flex-1">
+                    <div id="status-title" class="text-xs font-mono font-bold uppercase tracking-wide text-amber-300">
+                        Brankas Terkunci (Saldo Saat Ini: Rp 1.000.000)
+                    </div>
+                    <p id="status-desc" class="text-xs sm:text-sm text-slate-200 mt-0.5 leading-snug">
+                        Pilih salah satu skenario demo di bagian bawah untuk menguji perlindungan enkapsulasi.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Kontrol Visibilitas Perisai (Tengah Atas / Kanan Atas) -->
+    <div class="fixed top-4 right-4 z-20 flex items-center gap-2">
+        <div class="glass-panel rounded-2xl p-1.5 flex items-center gap-1">
+            <button id="btn-shield-full" onclick="setShieldMode('full')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition bg-amber-500 text-slate-950 shadow">
+                🛡️ Perisai Penuh
+            </button>
+            <button id="btn-shield-xray" onclick="setShieldMode('xray')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white">
+                🔬 Mode X-Ray
+            </button>
+        </div>
+        <button id="btn-toggle-code" onclick="toggleCodePanel()" class="glass-panel rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 hover:bg-slate-800/90 transition border border-cyan-500/30">
+            { } <span class="hidden sm:inline" id="code-toggle-label">Sembunyikan Kode</span>
+        </button>
+    </div>
+
+    <!-- Panel Kode Python & Terminal Output Tersinkronisasi (Kanan) -->
+    <aside id="code-panel" class="fixed top-20 right-4 bottom-36 w-[92vw] sm:w-[430px] lg:w-[460px] z-20 glass-panel rounded-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <!-- Header Editor -->
+        <div class="px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-mono text-slate-300 ml-1.5">rekening_bank.py</span>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Encapsulation
+            </span>
+        </div>
+
+        <!-- Isi Kode Python (Tanpa Type Annotations Atribut) -->
+        <div class="p-3 overflow-y-auto flex-1 font-mono text-[11px] sm:text-xs leading-relaxed bg-[#080b13]/90">
+<pre class="text-slate-200"><span id="line-1" class="code-line"><span class="text-purple-400">class</span> <span class="text-cyan-300 font-bold">RekeningBank</span>:</span>
+<span id="line-2" class="code-line">    <span class="text-purple-400">def</span> <span class="text-blue-300">__init__</span>(self, pemilik, saldo_awal):</span>
+<span id="line-3" class="code-line">        self.pemilik = pemilik</span>
+<span id="line-4" class="code-line">        <span class="text-slate-400"># Private attribute (dilindungi name mangling)</span></span>
+<span id="line-5" class="code-line">        self.<span class="text-amber-300 font-bold">__saldo</span> = saldo_awal</span>
+<span id="line-6" class="code-line"></span>
+<span id="line-7" class="code-line">    <span class="text-cyan-400 font-semibold">@property</span></span>
+<span id="line-8" class="code-line">    <span class="text-purple-400">def</span> <span class="text-cyan-300 font-bold">saldo</span>(self):</span>
+<span id="line-9" class="code-line">        <span class="text-slate-400">"""Gerbang Getter: Membaca data dengan aman"""</span></span>
+<span id="line-10" class="code-line">        <span class="text-purple-400">return</span> self.<span class="text-amber-300">__saldo</span></span>
+<span id="line-11" class="code-line"></span>
+<span id="line-12" class="code-line">    <span class="text-emerald-400 font-semibold">@saldo.setter</span></span>
+<span id="line-13" class="code-line">    <span class="text-purple-400">def</span> <span class="text-emerald-300 font-bold">saldo</span>(self, nilai):</span>
+<span id="line-14" class="code-line">        <span class="text-slate-400">"""Gerbang Setter: Validasi sebelum ubah inti"""</span></span>
+<span id="line-15" class="code-line">        <span class="text-purple-400">if</span> nilai &lt; <span class="text-rose-300">0</span>:</span>
+<span id="line-16" class="code-line">            <span class="text-purple-400">raise</span> <span class="text-rose-400 font-bold">ValueError</span>(<span class="text-amber-200">"Saldo tidak boleh negatif!"</span>)</span>
+<span id="line-17" class="code-line">        self.<span class="text-amber-300 font-bold">__saldo</span> = nilai</span>
+<span id="line-18" class="code-line"></span>
+<span id="line-19" class="code-line"><span class="text-slate-500"># --- Kode Pemanggil (Client) ---</span></span>
+<span id="line-20" class="code-line">akun = RekeningBank(<span class="text-emerald-300">"Budi"</span>, <span id="code-init-val" class="text-amber-300">1000000</span>)</span>
+<span id="line-21" class="code-line"><span id="dynamic-call-code" class="text-slate-400"># Klik tombol aksi di bawah untuk eksekusi...</span></span></pre>
+        </div>
+
+        <!-- Console Output Terminal Interaktif -->
+        <div class="h-36 bg-slate-950 border-t border-slate-800 flex flex-col">
+            <div class="px-3 py-1.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Console Output Python
+                </span>
+                <button onclick="clearTerminal()" class="text-[10px] font-mono text-slate-400 hover:text-slate-200">
+                    Bersihkan
+                </button>
+            </div>
+            <div id="terminal-output" class="p-3 font-mono text-[11px] overflow-y-auto flex-1 space-y-1.5 text-slate-300">
+                <div class="text-slate-500">&gt;&gt;&gt; akun = RekeningBank("Budi", 1000000)</div>
+                <div class="text-emerald-400">Objek RekeningBank berhasil dibuat. Inti __saldo = Rp 1.000.000</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Dock Kontrol Skenario Demo Perkuliahan (Bawah) -->
+    <footer class="fixed bottom-4 left-4 right-4 z-20 flex flex-col items-center pointer-events-none">
+        <div class="glass-panel rounded-2xl p-3 pointer-events-auto w-full max-w-6xl">
+            <div class="flex items-center justify-between px-1 mb-2">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    Skenario Uji Coba Enkapsulasi (Klik untuk Menjalankan Simulasi 3D)
+                </span>
+                <span id="vault-balance-badge" class="text-xs font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                    __saldo: Rp 1.000.000
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <!-- Aksi 1: Akses Langsung Ilegal -->
+                <button onclick="runActionIllegalDirect()" class="action-btn group text-left p-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                            <span>🚫</span> 1. Akses Langsung Ilegal
+                        </span>
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">Error</span>
+                    </div>
+                    <code class="text-[11px] font-mono text-rose-200/90 mt-1 block truncate">
+                        akun.__saldo = -500000
+                    </code>
+                </button>
+
+                <!-- Aksi 2: Setter Invalid -->
+                <button onclick="runActionSetterInvalid()" class="action-btn group text-left p-2.5 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                            <span>⚠️</span> 2. Setter Invalid
+                        </span>
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">Validasi</span>
+                    </div>
+                    <code class="text-[11px] font-mono text-amber-200/90 mt-1 block truncate">
+                        akun.saldo = -500000
+                    </code>
+                </button>
+
+                <!-- Aksi 3: Setter Valid -->
+                <button onclick="runActionSetterValid()" class="action-btn group text-left p-2.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                            <span>✅</span> 3. Setter Valid (Setor)
+                        </span>
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">+Rp 1,5 Jt</span>
+                    </div>
+                    <code id="btn-valid-code" class="text-[11px] font-mono text-emerald-200/90 mt-1 block truncate">
+                        akun.saldo = 2500000
+                    </code>
+                </button>
+
+                <!-- Aksi 4: Getter (@property) -->
+                <button onclick="runActionGetter()" class="action-btn group text-left p-2.5 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 transition active:scale-95 flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                            <span>🔍</span> 4. Getter (@property)
+                        </span>
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">Read</span>
+                    </div>
+                    <code class="text-[11px] font-mono text-cyan-200/90 mt-1 block truncate">
+                        print(akun.saldo)
+                    </code>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. STATE APLIKASI & UTILITAS FORMAT
+        // ==========================================
+        let currentSaldo = 1000000;
+        let shieldMode = 'full'; // 'full' | 'xray'
+        let isAnimatingAction = false;
+        let codePanelOpen = true;
+        let soundEnabled = false;
+
+        function formatRupiah(angka) {
+            return 'Rp ' + angka.toLocaleString('id-ID');
+        }
+
+        // ==========================================
+        // 2. AUDIO SINTETIK (TONE.JS)
+        // ==========================================
+        let synth = null;
+        document.getElementById('btn-sound').addEventListener('click', async () => {
+            if (!soundEnabled) {
+                await Tone.start();
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -10;
+                soundEnabled = true;
+                document.getElementById('sound-icon').textContent = '🔊';
+                document.getElementById('sound-label').textContent = 'Audio On';
+                playSound('C5', '16n');
+            } else {
+                soundEnabled = false;
+                document.getElementById('sound-icon').textContent = '🔇';
+                document.getElementById('sound-label').textContent = 'Audio';
+            }
+        });
+
+        function playSound(notes, duration = '16n') {
+            if (soundEnabled && synth) {
+                try {
+                    synth.triggerAttackRelease(notes, duration);
+                } catch (e) {}
+            }
+        }
+
+        // ==========================================
+        // 3. INISIALISASI SCENE 3D THREE.JS
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0b0f19, 0.028);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2.2, 10.5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.25;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.minDistance = 5;
+        controls.maxDistance = 18;
+        controls.maxPolarAngle = Math.PI * 0.85;
+
+        // Pencahayaan Cyberpunk / Tech-Lab
+        const ambientLight = new THREE.AmbientLight(0x1e293b, 2.0);
+        scene.add(ambientLight);
+
+        const topLight = new THREE.DirectionalLight(0x38bdf8, 1.6);
+        topLight.position.set(4, 8, 5);
+        scene.add(topLight);
+
+        const rimLight = new THREE.DirectionalLight(0xf59e0b, 1.2);
+        rimLight.position.set(-6, 4, -5);
+        scene.add(rimLight);
+
+        const corePointLight = new THREE.PointLight(0xfbbf24, 3.2, 9);
+        corePointLight.position.set(0, 0, 0);
+        scene.add(corePointLight);
+
+        // Lantai Grid Tech-Lab
+        const gridHelper = new THREE.GridHelper(32, 32, 0x1e3a8a, 0x0f172a);
+        gridHelper.position.y = -3.3;
+        scene.add(gridHelper);
+
+        // Partikel Latar Belakang
+        const bgStarGeo = new THREE.BufferGeometry();
+        const bgStarPos = new Float32Array(360 * 3);
+        for (let i = 0; i < bgStarPos.length; i++) {
+            bgStarPos[i] = (Math.random() - 0.5) * 48;
+        }
+        bgStarGeo.setAttribute('position', new THREE.BufferAttribute(bgStarPos, 3));
+        const bgStarMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.08, transparent: true, opacity: 0.45 });
+        const bgStars = new THREE.Points(bgStarGeo, bgStarMat);
+        scene.add(bgStars);
+
+        // ==========================================
+        // 4. TEKSTUR DINAMIS CANVAS UNTUK LABEL 3D
+        // ==========================================
+        function createCoreLabelTexture(saldoValue) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 180;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
+            ctx.beginPath();
+            ctx.roundRect(10, 10, 492, 160, 24);
+            ctx.fill();
+
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.stroke();
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 26px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('self.__saldo (PRIVATE)', 256, 62);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 42px "Inter", sans-serif';
+            ctx.fillText(formatRupiah(saldoValue), 256, 128);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        function createGateLabelTexture(title, subtitle, borderColor, textColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 440;
+            canvas.height = 130;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(11, 15, 25, 0.9)';
+            ctx.beginPath();
+            ctx.roundRect(8, 8, 424, 114, 20);
+            ctx.fill();
+
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+
+            ctx.fillStyle = textColor;
+            ctx.font = 'bold 30px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(title, 220, 58);
+
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '600 20px "Inter", sans-serif';
+            ctx.fillText(subtitle, 220, 96);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        // ==========================================
+        // 5. OBJEK 3D UTAMA: KUBAH BRANKAS DATA
+        // ==========================================
+        const vaultGroup = new THREE.Group();
+        scene.add(vaultGroup);
+
+        // --- A. Inti Kristal Private Attribute (self.__saldo) ---
+        const coreGroup = new THREE.Group();
+        vaultGroup.add(coreGroup);
+
+        const crystalGeo = new THREE.OctahedronGeometry(0.95, 1);
+        const crystalMat = new THREE.MeshStandardMaterial({
+            color: 0xfbbf24,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.9,
+            metalness: 0.4,
+            roughness: 0.15
+        });
+        const coreCrystal = new THREE.Mesh(crystalGeo, crystalMat);
+        coreGroup.add(coreCrystal);
+
+        // Cincin Energi Mengorbit Inti
+        const innerOrbitGeo = new THREE.TorusGeometry(1.3, 0.035, 12, 48);
+        const innerOrbitMat = new THREE.MeshBasicMaterial({ color: 0xfde68a });
+        const innerOrbit = new THREE.Mesh(innerOrbitGeo, innerOrbitMat);
+        innerOrbit.rotation.x = Math.PI / 3;
+        coreGroup.add(innerOrbit);
+
+        // Papan Teks Dinamis Nilai __saldo di Atas Kristal
+        const coreLabelGeo = new THREE.PlaneGeometry(2.7, 0.95);
+        const coreLabelMat = new THREE.MeshBasicMaterial({
+            map: createCoreLabelTexture(currentSaldo),
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const coreLabelMesh = new THREE.Mesh(coreLabelGeo, coreLabelMat);
+        coreLabelMesh.position.set(0, 1.55, 0);
+        coreGroup.add(coreLabelMesh);
+
+        // --- B. Lapisan Perisai Enkapsulasi (Encapsulation Shield) ---
+        const shieldGroup = new THREE.Group();
+        vaultGroup.add(shieldGroup);
+
+        // Kubah Icosahedron Geodesik (Perisai Heksagonal/Segitiga Berlapis)
+        const shieldSphereGeo = new THREE.IcosahedronGeometry(2.35, 2);
+        const shieldSurfaceMat = new THREE.MeshPhysicalMaterial({
+            color: 0x0f172a,
+            emissive: 0x0284c7,
+            emissiveIntensity: 0.35,
+            metalness: 0.7,
+            roughness: 0.2,
+            transparent: true,
+            opacity: 0.86,
+            flatShading: true,
+            side: THREE.DoubleSide
+        });
+        const shieldSurface = new THREE.Mesh(shieldSphereGeo, shieldSurfaceMat);
+        shieldGroup.add(shieldSurface);
+
+        // Jaring Wireframe Energi di Luar Kubah
+        const shieldWireGeo = new THREE.IcosahedronGeometry(2.38, 2);
+        const shieldWireMat = new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.45
+        });
+        const shieldWireframe = new THREE.Mesh(shieldWireGeo, shieldWireMat);
+        shieldGroup.add(shieldWireframe);
+
+        // Cincin Sabuk Pelindung Ekuator
+        const beltGeo = new THREE.TorusGeometry(2.55, 0.08, 16, 64);
+        const beltMat = new THREE.MeshStandardMaterial({
+            color: 0x0284c7,
+            emissive: 0x0369a1,
+            emissiveIntensity: 0.7,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const equatorBelt = new THREE.Mesh(beltGeo, beltMat);
+        equatorBelt.rotation.x = Math.PI / 2;
+        shieldGroup.add(equatorBelt);
+
+        // --- C. Gerbang Akses Publik (@saldo.setter & @property) ---
+        // 1. Gerbang Kiri: @saldo.setter (Pintu Masuk Modifikasi + Cincin Validasi)
+        const setterGateGroup = new THREE.Group();
+        setterGateGroup.position.set(-2.65, 0, 0);
+        vaultGroup.add(setterGateGroup);
+
+        const setterRingGeo = new THREE.TorusGeometry(0.65, 0.09, 16, 36);
+        const setterRingMat = new THREE.MeshStandardMaterial({
+            color: 0x10b981,
+            emissive: 0x059669,
+            emissiveIntensity: 0.8,
+            metalness: 0.6,
+            roughness: 0.2
+        });
+        const setterOuterRing = new THREE.Mesh(setterRingGeo, setterRingMat);
+        setterOuterRing.rotation.y = Math.PI / 2;
+        setterGateGroup.add(setterOuterRing);
+
+        // Cincin Validator (Iris Gate yang menutup saat invalid dan membuka saat valid)
+        const validatorIrisGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 24);
+        const validatorIrisMat = new THREE.MeshStandardMaterial({
+            color: 0x10b981,
+            emissive: 0x10b981,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.75
+        });
+        const validatorIris = new THREE.Mesh(validatorIrisGeo, validatorIrisMat);
+        validatorIris.rotation.z = Math.PI / 2;
+        setterGateGroup.add(validatorIris);
+
+        // Label @saldo.setter
+        const setterLabelMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.4, 0.72),
+            new THREE.MeshBasicMaterial({
+                map: createGateLabelTexture('@saldo.setter', 'Gerbang Validasi Tulis', '#10b981', '#6ee7b7'),
+                transparent: true,
+                side: THREE.DoubleSide
+            })
+        );
+        setterLabelMesh.position.set(-0.3, 1.15, 0);
+        setterGateGroup.add(setterLabelMesh);
+
+        // 2. Gerbang Kanan: @property (Getter Pembacaan Data)
+        const getterGateGroup = new THREE.Group();
+        getterGateGroup.position.set(2.65, 0, 0);
+        vaultGroup.add(getterGateGroup);
+
+        const getterRingGeo = new THREE.TorusGeometry(0.65, 0.09, 16, 36);
+        const getterRingMat = new THREE.MeshStandardMaterial({
+            color: 0x06b6d4,
+            emissive: 0x0891b2,
+            emissiveIntensity: 0.8,
+            metalness: 0.6,
+            roughness: 0.2
+        });
+        const getterOuterRing = new THREE.Mesh(getterRingGeo, getterRingMat);
+        getterOuterRing.rotation.y = Math.PI / 2;
+        getterGateGroup.add(getterOuterRing);
+
+        // Label @property
+        const getterLabelMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.4, 0.72),
+            new THREE.MeshBasicMaterial({
+                map: createGateLabelTexture('@property', 'Gerbang Getter (Baca)', '#06b6d4', '#67e8f9'),
+                transparent: true,
+                side: THREE.DoubleSide
+            })
+        );
+        getterLabelMesh.position.set(0.3, 1.15, 0);
+        getterGateGroup.add(getterLabelMesh);
+
+        // ==========================================
+        // 6. PROYEKTIL SINAR & PARTIKEL PERCIKAN
+        // ==========================================
+        const beamGeo = new THREE.SphereGeometry(0.22, 16, 16);
+        const beamMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+        const actionBeam = new THREE.Mesh(beamGeo, beamMat);
+        actionBeam.visible = false;
+        scene.add(actionBeam);
+
+        // Sistem Partikel Percikan saat Perisai Menolak Serangan
+        const sparkCount = 45;
+        const sparkGeo = new THREE.BufferGeometry();
+        const sparkPositions = new Float32Array(sparkCount * 3);
+        const sparkVelocities = [];
+        for (let i = 0; i < sparkCount; i++) {
+            sparkPositions[i * 3] = 0;
+            sparkPositions[i * 3 + 1] = 0;
+            sparkPositions[i * 3 + 2] = 0;
+            sparkVelocities.push(new THREE.Vector3());
+        }
+        sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
+        const sparkMat = new THREE.PointsMaterial({
+            color: 0xfb7185,
+            size: 0.16,
+            transparent: true,
+            opacity: 0
+        });
+        const sparkParticles = new THREE.Points(sparkGeo, sparkMat);
+        scene.add(sparkParticles);
+
+        function triggerSparks(originVec, colorHex) {
+            sparkMat.color.setHex(colorHex);
+            sparkMat.opacity = 1.0;
+            const posAttr = sparkGeo.attributes.position;
+            for (let i = 0; i < sparkCount; i++) {
+                posAttr.setXYZ(i, originVec.x, originVec.y, originVec.z);
+                sparkVelocities[i].set(
+                    (Math.random() - 0.5) * 0.25,
+                    (Math.random() - 0.5) * 0.25,
+                    (Math.random() - 0.5) * 0.25
+                );
+            }
+            posAttr.needsUpdate = true;
+        }
+
+        // ==========================================
+        // 7. LOGIKA SKENARIO DEMO & SINKRONISASI KODE
+        // ==========================================
+        let activeSimulation = null;
+        let shieldFlashColor = null;
+        let shieldFlashIntensity = 0;
+        let vaultShakeTime = 0;
+        let irisOpenTarget = 0; // 0 = tertutup, 1 = terbuka
+
+        function highlightCodeLines(lineNumbers, colorClass, dynamicCodeHtml) {
+            document.querySelectorAll('.code-line').forEach(el => {
+                el.classList.remove('active-cyan', 'active-emerald', 'active-rose', 'active-amber');
+            });
+            lineNumbers.forEach(num => {
+                const el = document.getElementById(`line-${num}`);
+                if (el) el.classList.add(colorClass);
+            });
+            if (dynamicCodeHtml) {
+                document.getElementById('dynamic-call-code').innerHTML = dynamicCodeHtml;
+            }
+        }
+
+        function appendTerminal(command, output, isError = false) {
+            const term = document.getElementById('terminal-output');
+            const cmdDiv = document.createElement('div');
+            cmdDiv.className = 'text-slate-300 mt-1';
+            cmdDiv.textContent = `>>> ${command}`;
+
+            const outDiv = document.createElement('div');
+            outDiv.className = isError ? 'text-rose-400 font-semibold' : 'text-emerald-400';
+            outDiv.textContent = output;
+
+            term.appendChild(cmdDiv);
+            term.appendChild(outDiv);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal-output').innerHTML =
+                `<div class="text-slate-500">&gt;&gt;&gt; # Terminal dibersihkan. Saldo aktif: ${formatRupiah(currentSaldo)}</div>`;
+        }
+
+        function updateStatusBanner(icon, title, desc, borderClass, titleColorClass) {
+            const banner = document.getElementById('status-banner');
+            banner.className = `glass-panel rounded-xl px-4 py-3 border-l-4 pointer-events-auto transition-all duration-300 ${borderClass}`;
+            document.getElementById('status-icon').textContent = icon;
+            const titleEl = document.getElementById('status-title');
+            titleEl.textContent = title;
+            titleEl.className = `text-xs font-mono font-bold uppercase tracking-wide ${titleColorClass}`;
+            document.getElementById('status-desc').textContent = desc;
+        }
+
+        function updateSaldoVisuals(newSaldo) {
+            currentSaldo = newSaldo;
+            document.getElementById('vault-balance-badge').textContent = `__saldo: ${formatRupiah(currentSaldo)}`;
+
+            // Perbarui tekstur papan 3D di atas kristal inti
+            if (coreLabelMat.map) coreLabelMat.map.dispose();
+            coreLabelMat.map = createCoreLabelTexture(currentSaldo);
+            coreLabelMat.needsUpdate = true;
+
+            // Siapkan nominal berikutnya untuk tombol Setor Valid (+Rp 1.500.000)
+            const nextDeposit = currentSaldo + 1500000;
+            document.getElementById('btn-valid-code').textContent = `akun.saldo = ${nextDeposit}`;
+        }
+
+        // --- SKENARIO 1: Akses Langsung Ilegal (akun.__saldo = -500000) ---
+        function runActionIllegalDirect() {
+            if (isAnimatingAction) return;
+            isAnimatingAction = true;
+
+            highlightCodeLines(
+                [5, 21],
+                'active-rose',
+                `<span class="text-rose-400 font-bold">akun.__saldo = -500000</span>  <span class="text-slate-400"># Mencoba tembus langsung!</span>`
+            );
+
+            playSound('C3', '16n');
+            activeSimulation = {
+                type: 'illegal',
+                progress: 0
+            };
+            actionBeam.visible = true;
+            beamMat.color.setHex(0xf43f5e);
+        }
+
+        // --- SKENARIO 2: Setter Invalid (akun.saldo = -500000) ---
+        function runActionSetterInvalid() {
+            if (isAnimatingAction) return;
+            isAnimatingAction = true;
+
+            highlightCodeLines(
+                [12, 13, 15, 16, 21],
+                'active-amber',
+                `<span class="text-amber-300 font-bold">akun.saldo = -500000</span>  <span class="text-slate-400"># Lewat @saldo.setter</span>`
+            );
+
+            playSound('D4', '16n');
+            activeSimulation = {
+                type: 'setter_invalid',
+                progress: 0
+            };
+            actionBeam.visible = true;
+            beamMat.color.setHex(0xf59e0b);
+        }
+
+        // --- SKENARIO 3: Setter Valid (akun.saldo = saldo + 1500000) ---
+        function runActionSetterValid() {
+            if (isAnimatingAction) return;
+            isAnimatingAction = true;
+
+            const targetSaldo = currentSaldo + 1500000;
+            highlightCodeLines(
+                [12, 13, 15, 17, 21],
+                'active-emerald',
+                `<span class="text-emerald-300 font-bold">akun.saldo = ${targetSaldo}</span>  <span class="text-slate-400"># Lolos validasi!</span>`
+            );
+
+            playSound('E4', '16n');
+            activeSimulation = {
+                type: 'setter_valid',
+                progress: 0,
+                targetSaldo: targetSaldo
+            };
+            actionBeam.visible = true;
+            beamMat.color.setHex(0x10b981);
+        }
+
+        // --- SKENARIO 4: Getter (@property) ---
+        function runActionGetter() {
+            if (isAnimatingAction) return;
+            isAnimatingAction = true;
+
+            highlightCodeLines(
+                [7, 8, 10, 21],
+                'active-cyan',
+                `<span class="text-cyan-300 font-bold">print(akun.saldo)</span>  <span class="text-slate-400"># Membaca via @property</span>`
+            );
+
+            playSound('G4', '16n');
+            activeSimulation = {
+                type: 'getter',
+                progress: 0
+            };
+            actionBeam.visible = true;
+            beamMat.color.setHex(0x22d3ee);
+        }
+
+        // ==========================================
+        // 8. KONTROL UI TAMBAHAN (X-RAY, KAMERA, PANEL)
+        // ==========================================
+        function setShieldMode(mode) {
+            shieldMode = mode;
+            const btnFull = document.getElementById('btn-shield-full');
+            const btnXray = document.getElementById('btn-shield-xray');
+
+            if (mode === 'full') {
+                btnFull.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition bg-amber-500 text-slate-950 shadow';
+                btnXray.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white';
+            } else {
+                btnXray.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition bg-cyan-500 text-slate-950 shadow';
+                btnFull.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white';
+            }
+        }
+
+        let targetCamPos = null;
+        function resetCamera() {
+            targetCamPos = new THREE.Vector3(0, 2.2, 10.5);
+        }
+
+        function toggleCodePanel() {
+            const panel = document.getElementById('code-panel');
+            const label = document.getElementById('code-toggle-label');
+            codePanelOpen = !codePanelOpen;
+            if (codePanelOpen) {
+                panel.style.opacity = '1';
+                panel.style.pointerEvents = 'auto';
+                panel.style.transform = 'translateX(0)';
+                if (label) label.textContent = 'Sembunyikan Kode';
+            } else {
+                panel.style.opacity = '0';
+                panel.style.pointerEvents = 'none';
+                panel.style.transform = 'translateX(30px)';
+                if (label) label.textContent = 'Tampilkan Kode';
+            }
+        }
+
+        // ==========================================
+        // 9. ANIMATION LOOP UTAMA
+        // ==========================================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+
+            // Rotasi lembut inti kristal & perisai
+            coreCrystal.rotation.y = elapsed * 0.7;
+            coreCrystal.rotation.x = Math.sin(elapsed * 0.8) * 0.2;
+            innerOrbit.rotation.z = elapsed * 1.1;
+            shieldWireframe.rotation.y = -elapsed * 0.12;
+
+            // Opacity Perisai (Mode Penuh vs X-Ray)
+            const desiredOpacity = shieldMode === 'full' ? 0.84 : 0.16;
+            shieldSurfaceMat.opacity += (desiredOpacity - shieldSurfaceMat.opacity) * 0.08;
+
+            // Animasi Gerbang Iris @saldo.setter (Buka / Tutup)
+            const targetScale = irisOpenTarget === 1 ? 0.05 : 1.0;
+            validatorIris.scale.x += (targetScale - validatorIris.scale.x) * 0.12;
+            validatorIris.scale.z += (targetScale - validatorIris.scale.z) * 0.12;
+
+            // Efek kilatan warna pada perisai saat menerima aksi
+            if (shieldFlashIntensity > 0.01) {
+                shieldSurfaceMat.emissive.setHex(shieldFlashColor);
+                shieldSurfaceMat.emissiveIntensity = 0.35 + shieldFlashIntensity;
+                shieldWireMat.color.setHex(shieldFlashColor);
+                shieldFlashIntensity *= 0.94;
+            } else {
+                shieldSurfaceMat.emissive.setHex(0x0284c7);
+                shieldSurfaceMat.emissiveIntensity = 0.35;
+                shieldWireMat.color.setHex(0x38bdf8);
+            }
+
+            // Efek getaran brankas saat serangan ditolak
+            if (vaultShakeTime > 0) {
+                vaultGroup.position.x = Math.sin(elapsed * 65) * 0.14 * vaultShakeTime;
+                vaultShakeTime -= 0.04;
+            } else {
+                vaultGroup.position.x = 0;
+            }
+
+            // Update partikel percikan
+            if (sparkMat.opacity > 0.01) {
+                const posAttr = sparkGeo.attributes.position;
+                for (let i = 0; i < sparkCount; i++) {
+                    posAttr.setXYZ(
+                        i,
+                        posAttr.getX(i) + sparkVelocities[i].x,
+                        posAttr.getY(i) + sparkVelocities[i].y,
+                        posAttr.getZ(i) + sparkVelocities[i].z
+                    );
+                }
+                posAttr.needsUpdate = true;
+                sparkMat.opacity *= 0.94;
+            }
+
+            // Eksekusi Simulasi Sinar 3D
+            if (activeSimulation) {
+                activeSimulation.progress += 0.022;
+                const p = activeSimulation.progress;
+
+                if (activeSimulation.type === 'illegal') {
+                    // Sinar datang dari depan-atas (0, 3.5, 6.5) menabrak dinding perisai (0, 1.1, 2.2)
+                    if (p < 0.45) {
+                        const t = p / 0.45;
+                        actionBeam.position.set(0, 3.5 - t * 2.4, 6.5 - t * 4.3);
+                    } else if (p < 0.9) {
+                        // Terpantul balik!
+                        if (p - 0.022 < 0.45) {
+                            shieldFlashColor = 0xf43f5e;
+                            shieldFlashIntensity = 2.4;
+                            vaultShakeTime = 1.0;
+                            triggerSparks(new THREE.Vector3(0, 1.1, 2.2), 0xf43f5e);
+                            playSound(['C2', 'F#2'], '8n');
+
+                            updateStatusBanner(
+                                '🛡️',
+                                'SERANGAN DITOLAK: Name Mangling Aktif!',
+                                "Python mengubah __saldo menjadi _RekeningBank__saldo. Akses langsung dari luar gagal memodifikasi inti brankas!",
+                                'border-l-rose-500',
+                                'text-rose-400'
+                            );
+                            appendTerminal(
+                                'akun.__saldo = -500000  # Mencoba ubah atribut privat',
+                                "AttributeError: 'RekeningBank' object has no attribute '__saldo' (Dilindungi Name Mangling)",
+                                true
+                            );
+                        }
+                        const t = (p - 0.45) / 0.45;
+                        actionBeam.position.set(t * 2.5, 1.1 + t * 3.0, 2.2 + t * 4.5);
+                    } else {
+                        actionBeam.visible = false;
+                        activeSimulation = null;
+                        isAnimatingAction = false;
+                    }
+                } else if (activeSimulation.type === 'setter_invalid') {
+                    // Sinar masuk dari kiri (-6.2, 0, 0) menuju gerbang @saldo.setter (-2.65, 0, 0)
+                    if (p < 0.45) {
+                        const t = p / 0.45;
+                        actionBeam.position.set(-6.2 + t * 3.55, 0, 0);
+                    } else if (p < 0.9) {
+                        if (p - 0.022 < 0.45) {
+                            validatorIrisMat.color.setHex(0xf43f5e);
+                            validatorIrisMat.emissive.setHex(0xf43f5e);
+                            shieldFlashColor = 0xf59e0b;
+                            shieldFlashIntensity = 1.6;
+                            vaultShakeTime = 0.7;
+                            triggerSparks(new THREE.Vector3(-2.65, 0, 0), 0xf59e0b);
+                            playSound(['D3', 'G#3'], '8n');
+
+                            updateStatusBanner(
+                                '⚠️',
+                                'DITOLAK VALIDATOR @saldo.setter: ValueError!',
+                                'Gerbang @saldo.setter memeriksa nilai (-500000 < 0) dan melempar ValueError sebelum menyentuh inti __saldo.',
+                                'border-l-amber-500',
+                                'text-amber-300'
+                            );
+                            appendTerminal(
+                                'akun.saldo = -500000',
+                                'ValueError: Saldo tidak boleh negatif!',
+                                true
+                            );
+                        }
+                        const t = (p - 0.45) / 0.45;
+                        actionBeam.position.set(-2.65 - t * 3.5, t * 1.8, 0);
+                    } else {
+                        validatorIrisMat.color.setHex(0x10b981);
+                        validatorIrisMat.emissive.setHex(0x10b981);
+                        actionBeam.visible = false;
+                        activeSimulation = null;
+                        isAnimatingAction = false;
+                    }
+                } else if (activeSimulation.type === 'setter_valid') {
+                    // Sinar hijau masuk melewati gerbang @saldo.setter (-2.65) langsung ke inti kristal (0,0,0)
+                    if (p < 0.4) {
+                        const t = p / 0.4;
+                        actionBeam.position.set(-6.2 + t * 3.55, 0, 0);
+                        irisOpenTarget = 1; // Buka pintu validasi
+                    } else if (p < 0.8) {
+                        const t = (p - 0.4) / 0.4;
+                        actionBeam.position.set(-2.65 + t * 2.65, 0, 0);
+                    } else {
+                        irisOpenTarget = 0; // Tutup kembali pintu validasi
+                        actionBeam.visible = false;
+
+                        const newVal = activeSimulation.targetSaldo;
+                        updateSaldoVisuals(newVal);
+
+                        shieldFlashColor = 0x10b981;
+                        shieldFlashIntensity = 1.8;
+                        crystalMat.color.setHex(0x34d399);
+                        crystalMat.emissive.setHex(0x059669);
+                        corePointLight.color.setHex(0x10b981);
+                        setTimeout(() => {
+                            crystalMat.color.setHex(0xfbbf24);
+                            crystalMat.emissive.setHex(0xd97706);
+                            corePointLight.color.setHex(0xfbbf24);
+                        }, 1400);
+
+                        playSound(['C5', 'E5', 'G5'], '8n');
+                        updateStatusBanner(
+                            '✅',
+                            `VALIDASI LOLOS: Saldo Diperbarui (${formatRupiah(newVal)})`,
+                            'Nilai valid melewati gerbang @saldo.setter, pintu perisai terbuka sesaat, dan inti __saldo diperbarui dengan aman.',
+                            'border-l-emerald-500',
+                            'text-emerald-300'
+                        );
+                        appendTerminal(
+                            `akun.saldo = ${newVal}`,
+                            `[Sukses] @saldo.setter memperbarui self.__saldo menjadi ${formatRupiah(newVal)}`,
+                            false
+                        );
+
+                        activeSimulation = null;
+                        isAnimatingAction = false;
+                    }
+                } else if (activeSimulation.type === 'getter') {
+                    // Sinar pembacaan keluar dari inti (0,0,0) melalui gerbang @property (2.65,0,0) ke luar kanan (6.2,0,0)
+                    if (p < 0.45) {
+                        const t = p / 0.45;
+                        actionBeam.position.set(t * 2.65, 0, 0);
+                        getterOuterRing.material.emissiveIntensity = 2.2;
+                    } else if (p < 0.95) {
+                        const t = (p - 0.45) / 0.5;
+                        actionBeam.position.set(2.65 + t * 3.55, 0, 0);
+                    } else {
+                        getterOuterRing.material.emissiveIntensity = 0.8;
+                        actionBeam.visible = false;
+                        shieldFlashColor = 0x06b6d4;
+                        shieldFlashIntensity = 1.4;
+                        playSound(['E5', 'B5'], '16n');
+
+                        updateStatusBanner(
+                            '🔍',
+                            `PEMBACAAN AMAN VIA @property: ${formatRupiah(currentSaldo)}`,
+                            'Method @property memberikan akses baca (read-only) yang terkontrol tanpa membuka akses tulis langsung ke atribut privat.',
+                            'border-l-cyan-400',
+                            'text-cyan-300'
+                        );
+                        appendTerminal(
+                            'print(akun.saldo)',
+                            `${currentSaldo}  # (${formatRupiah(currentSaldo)})`,
+                            false
+                        );
+
+                        activeSimulation = null;
+                        isAnimatingAction = false;
+                    }
+                }
+            }
+
+            // Transisi reset kamera halus
+            if (targetCamPos) {
+                camera.position.lerp(targetCamPos, 0.08);
+                controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.08);
+                if (camera.position.distanceTo(targetCamPos) < 0.05) {
+                    targetCamPos = null;
+                }
+            }
+
+            bgStars.rotation.y += 0.0003;
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Responsive Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = function () {
+            if (window.innerWidth < 1024) {
+                toggleCodePanel();
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>

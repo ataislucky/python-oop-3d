@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python OOP 3D Lab — Visualisasi Interaktif 4 Pilar Pemrograman Berorientasi Objek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #060913;
+            color: #e2e8f0;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 75%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(56, 189, 248, 0.45);
+            box-shadow: 0 20px 40px -15px rgba(14, 165, 233, 0.2);
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col grid-bg">
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-50 border-b border-slate-800/80 bg-[#060913]/85 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
+                    Py
+                </div>
+                <div>
+                    <span class="font-bold text-white tracking-tight text-lg">Python OOP <span class="text-cyan-400">3D Lab</span></span>
+                </div>
+            </div>
+            <nav class="flex items-center gap-6 text-sm font-medium text-slate-300">
+                <a href="#modul" class="hover:text-cyan-400 transition">4 Pilar OOP</a>
+                <a href="#panduan" class="hidden md:inline hover:text-cyan-400 transition">Panduan Kelas</a>
+                
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main class="flex-grow">
+        <section class="max-w-7xl mx-auto px-6 pt-16 pb-14 text-center">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-medium text-cyan-300 mb-6">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                Visualisasi Interaktif untuk Pemrograman Berorientasi Objek
+            </div>
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight max-w-4xl mx-auto">
+                Pahami 4 Pilar <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400">OOP Python</span> Secara Visual & Interaktif
+            </h1>
+            <p class="mt-6 text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+                Laboratorium virtual 3D untuk membedah konsep abstrak di balik layar eksekusi Python—lengkap dengan simulasi kode real-time, inspeksi objek, dan pengujian error interaktif.
+            </p>
+            <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <a href="#modul" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold shadow-lg shadow-cyan-500/25 hover:opacity-95 transition">
+                    Pilih Modul Simulasi 3D
+                </a>
+                <a href="#panduan" class="px-6 py-3.5 rounded-xl bg-slate-800/80 text-slate-200 font-semibold border border-slate-700 hover:bg-slate-800 transition">
+                    Alur Pembelajaran
+                </a>
+            </div>
+        </section>
+
+        <!-- 4 Pillars Grid -->
+        <section id="modul" class="max-w-7xl mx-auto px-6 py-10">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Modul Praktikum Interaktif</h2>
+                    <p class="text-sm text-slate-400 mt-1">Klik salah satu modul untuk membuka ruang simulasi 3D layar penuh.</p>
+                </div>
+                <span class="hidden sm:inline-block code-font text-xs text-slate-500">Python 3.12+ • Three.js Engine</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Card 1: Abstraction -->
+                <div class="glass-card rounded-2xl p-7 flex flex-col justify-between group">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <span class="px-3 py-1 rounded-md text-xs font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                                PILAR 01 • ABSTRACTION
+                            </span>
+                            <span class="code-font text-xs text-slate-400">from abc import ABC</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white group-hover:text-cyan-400 transition">
+                            Abstraksi (Black-Box & X-Ray)
+                        </h3>
+                        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                            Visualisasi kontras antara kesederhanaan antarmuka publik (<code class="text-cyan-300">@abstractmethod</code>) dengan kerumitan implementasi internal di balik layar, termasuk fitur <em>hot-swap</em> backend tanpa mengubah kode pemanggil.
+                        </p>
+                        <div class="mt-5 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 code-font text-xs text-slate-300">
+                            <span class="text-purple-400">class</span> <span class="text-yellow-300">Messenger</span>(ABC):<br>
+                            &nbsp;&nbsp;<span class="text-cyan-400">@abstractmethod</span><br>
+                            &nbsp;&nbsp;<span class="text-purple-400">def</span> <span class="text-blue-400">send</span>(self, pesan): ...
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Fitur: Mode X-Ray, Hot-Swap Engine</span>
+                        <a href="abstraksi.html" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-bold text-sm hover:bg-cyan-400 transition">
+                            Buka Simulasi 3D <span>↗</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Card 2: Encapsulation -->
+                <div class="glass-card rounded-2xl p-7 flex flex-col justify-between group">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <span class="px-3 py-1 rounded-md text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                PILAR 02 • ENCAPSULATION
+                            </span>
+                            <span class="code-font text-xs text-slate-400">@property & __private</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white group-hover:text-emerald-400 transition">
+                            Enkapsulasi (Kubah Brankas Data)
+                        </h3>
+                        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                            Simulasi perisai pelindung atribut privat (<code class="text-emerald-300">self.__saldo</code>), mekanisme <em>Name Mangling</em>, penolakan akses ilegal, serta gerbang validasi <code class="text-emerald-300">@property</code> dan <code class="text-emerald-300">@setter</code>.
+                        </p>
+                        <div class="mt-5 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 code-font text-xs text-slate-300">
+                            <span class="text-cyan-400">@saldo.setter</span><br>
+                            <span class="text-purple-400">def</span> <span class="text-blue-400">saldo</span>(self, nilai):<br>
+                            &nbsp;&nbsp;<span class="text-purple-400">if</span> nilai &lt; 0: <span class="text-purple-400">raise</span> ValueError
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Fitur: Uji Serangan Akses, Setter Gate</span>
+                        <a href="enkapsulasi.html" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-sm hover:bg-emerald-400 transition">
+                            Buka Simulasi 3D <span>↗</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Card 3: Inheritance -->
+                <div class="glass-card rounded-2xl p-7 flex flex-col justify-between group">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <span class="px-3 py-1 rounded-md text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                PILAR 03 • INHERITANCE
+                            </span>
+                            <span class="code-font text-xs text-slate-400">super().__init__() & MRO</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white group-hover:text-amber-400 transition">
+                            Pewarisan (Hierarki Kelas & MRO)
+                        </h3>
+                        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                            Eksplorasi aliran atribut dari kelas induk (<code class="text-amber-300">Kendaraan</code>) ke kelas turunan (<code class="text-amber-300">Mobil</code> & <code class="text-amber-300">Motor</code>), inisialisasi <code class="text-amber-300">super()</code>, <em>Method Overriding</em>, dan pelacakan MRO.
+                        </p>
+                        <div class="mt-5 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 code-font text-xs text-slate-300">
+                            <span class="text-purple-400">class</span> <span class="text-yellow-300">Mobil</span>(Kendaraan):<br>
+                            &nbsp;&nbsp;<span class="text-purple-400">def</span> <span class="text-blue-400">__init__</span>(self, merk, pintu):<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">super()</span>.__init__(merk)
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Fitur: Aliran Energi super(), MRO Tracer</span>
+                        <a href="inheritance.html" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-sm hover:bg-amber-400 transition">
+                            Buka Simulasi 3D <span>↗</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Card 4: Polymorphism -->
+                <div class="glass-card rounded-2xl p-7 flex flex-col justify-between group">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <span class="px-3 py-1 rounded-md text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                                PILAR 04 • POLYMORPHISM
+                            </span>
+                            <span class="code-font text-xs text-slate-400">Overriding & Duck Typing</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white group-hover:text-purple-400 transition">
+                            Polimorfisme (Dispatcher & Duck Typing)
+                        </h3>
+                        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                            Satu sinyal pemanggilan method identik (<code class="text-purple-300">item.hitung_luas()</code>) menghasilkan proyeksi geometri dan kalkulasi berbeda pada berbagai objek, termasuk dukungan <em>Duck Typing</em> tanpa pewarisan.
+                        </p>
+                        <div class="mt-5 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 code-font text-xs text-slate-300">
+                            <span class="text-purple-400">for</span> bentuk <span class="text-purple-400">in</span> [Lingkaran(), Persegi(), Robot()]:<br>
+                            &nbsp;&nbsp;<span class="text-blue-400">print</span>(bentuk.hitung_luas())
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Fitur: Hologram 3D, Duck Typing Node</span>
+                        <a href="polymorphism.html" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-500 text-white font-bold text-sm hover:bg-purple-400 transition">
+                            Buka Simulasi 3D <span>↗</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Panduan Penggunaan -->
+        <section id="panduan" class="max-w-7xl mx-auto px-6 py-12">
+            <div class="rounded-2xl bg-slate-900/60 border border-slate-800 p-8">
+                <h2 class="text-xl font-bold text-white mb-6">Alur Eksplorasi untuk Mahasiswa</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                    <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                        <div class="text-cyan-400 font-bold mb-2">1. Observasi Visual 3D</div>
+                        <p class="text-slate-400">Gunakan mouse/touchpad untuk memutar (<em>orbit</em>) dan memperbesar (<em>zoom</em>) model 3D guna memahami struktur objek secara spasial.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                        <div class="text-emerald-400 font-bold mb-2">2. Trigger Aksi & Uji Error</div>
+                        <p class="text-slate-400">Klik tombol kontrol di setiap lab untuk memicu eksekusi method normal maupun simulasi pelanggaran aturan OOP (seperti <code>AttributeError</code>).</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                        <div class="text-purple-400 font-bold mb-2">3. Sinkronisasi Kode & Konsol</div>
+                        <p class="text-slate-400">Amati bagaimana setiap animasi 3D berkorespondensi langsung dengan baris kode Python yang disorot dan output terminal di panel samping.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-8 text-xs text-slate-400">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-center sm:text-left">
+                <p class="text-slate-300 font-medium">
+                    Dikembangkan oleh <span class="text-cyan-400 font-bold">Ata Amrullah</span>
+                </p>
+                <p class="text-slate-500 mt-1">
+                    Media Pembelajaran Interaktif — Pemrograman Berorientasi Objek (Python)
+                </p>
+            </div>
+            <div class="text-center sm:text-right code-font text-slate-500">
+                <p>© 2026 All Rights Reserved</p>
+                <p class="mt-1">Built with HTML5, Tailwind CSS & Three.js</p>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
